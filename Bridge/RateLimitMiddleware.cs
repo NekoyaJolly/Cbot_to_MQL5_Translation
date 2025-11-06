@@ -78,7 +78,8 @@ namespace Bridge
 
             if (exceedsLimit)
             {
-                _logger.LogWarning("Rate limit exceeded for {ClientIp}", clientIp);
+                // Log without potentially user-controlled IP to prevent log forging
+                _logger.LogWarning("Rate limit exceeded for client");
                 context.Response.StatusCode = 429; // Too Many Requests
                 await context.Response.WriteAsJsonAsync(new { Error = "Rate limit exceeded" });
                 return;

@@ -335,7 +335,8 @@ namespace Bridge
                 var success = _queueManager.IncrementRetryCount(orderId, TimeSpan.Zero);
                 if (success)
                 {
-                    _logger.LogInformation("Order {OrderId} scheduled for retry", orderId);
+                    // orderId is already sanitized above, but use a safe log format
+                    _logger.LogInformation("Order scheduled for retry");
                     return Ok(new { Status = "Scheduled for retry" });
                 }
                 return StatusCode(500, new { Error = "Failed to schedule retry" });
