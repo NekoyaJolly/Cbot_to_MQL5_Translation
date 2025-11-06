@@ -12,17 +12,21 @@ namespace Bridge
     /// <summary>
     /// Service for sending alerts via Slack, Telegram, or Email
     /// </summary>
-    public class AlertService
+    public class AlertService : IDisposable
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<AlertService> _logger;
         private readonly HttpClient _httpClient;
+        private bool _disposed = false;
 
         public AlertService(IConfiguration configuration, ILogger<AlertService> logger)
         {
             _configuration = configuration;
             _logger = logger;
-            _httpClient = new HttpClient();
+            _httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(10)
+            };
         }
 
         public async Task SendAlertAsync(string title, string message, AlertLevel level = AlertLevel.Warning)
@@ -177,6 +181,24 @@ namespace Bridge
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending email alert");
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    _httpClient?.Dispose();
+                }
+                _disposed = true;
             }
         }
     }

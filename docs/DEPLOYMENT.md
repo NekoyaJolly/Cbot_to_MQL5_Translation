@@ -8,7 +8,18 @@ This guide covers the production deployment requirements for the Bridge service.
 
 The bridge implements API key authentication via the `X-API-KEY` header.
 
-**Configuration in appsettings.json:**
+**Configuration using environment variables (recommended for production):**
+```bash
+export Bridge__ApiKey="your-secure-api-key-here"
+```
+
+Or in systemd service file:
+```ini
+[Service]
+Environment=Bridge__ApiKey=your-secure-api-key-here
+```
+
+**Alternative: Configuration in appsettings.json:**
 ```json
 {
   "Bridge": {
@@ -16,6 +27,8 @@ The bridge implements API key authentication via the `X-API-KEY` header.
   }
 }
 ```
+
+**Note:** For production, always use environment variables or a secure secret management system (Azure Key Vault, AWS Secrets Manager, etc.) instead of storing secrets in configuration files.
 
 **Usage:**
 All API requests (except `/api/health` and `/metrics`) must include the header:
@@ -289,6 +302,15 @@ Features:
 - 429 Too Many Requests response
 - IP whitelist for trusted clients
 - Health and metrics endpoints excluded
+- Properly handles X-Forwarded-For and X-Real-IP headers when behind a proxy
+
+**Important Note for Proxy Deployments:**
+When the bridge is deployed behind a reverse proxy (nginx, load balancer), the rate limiting automatically detects the client's real IP using the `X-Forwarded-For` or `X-Real-IP` headers. Ensure your proxy is configured to set these headers correctly:
+
+```nginx
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Real-IP $remote_addr;
+```
 
 ### IP Whitelist
 Add trusted IPs to bypass rate limiting (e.g., MT5 server IPs).

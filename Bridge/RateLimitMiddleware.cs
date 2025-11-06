@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -34,8 +35,8 @@ namespace Bridge
                 return;
             }
 
-            // Get client IP
-            var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            // Get client IP (handle proxies)
+            var clientIp = GetClientIp(context);
 
             // Check IP whitelist
             var whitelist = _configuration.GetSection("Bridge:RateLimiting:WhitelistedIPs").Get<string[]>();
@@ -84,6 +85,35 @@ namespace Bridge
             }
 
             await _next(context);
+        }
+
+        /// <summary>
+        /// Get client IP address, handling proxies properly
+        /// </summary>
+        private string GetClientIp(HttpContext context)
+        {
+            // Check if behind a proxy
+            var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(forwardedFor))
+            {
+                // X-Forwarded-For can contain multiple IPs (client, proxy1, proxy2, ...)
+                // Use the first one (original client)
+                var ips = forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                if (ips.Length > 0)
+                {
+                    return ips[0].Trim();
+                }
+            }
+
+            // Check X-Real-IP header (common with nginx)
+            var realIp = context.Request.Headers["X-Real-IP"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(realIp))
+            {
+                return realIp.Trim();
+            }
+
+            // Fall back to RemoteIpAddress
+            return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         }
 
         private class RateLimitInfo
