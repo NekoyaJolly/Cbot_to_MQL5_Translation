@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -150,8 +151,26 @@ namespace Bridge
         {
             try
             {
+                // Validate and sanitize input
+                if (order == null)
+                    return BadRequest(new { Error = "Order data is required" });
+                
+                // Sanitize string properties to prevent injection attacks
+                if (!string.IsNullOrEmpty(order.EventType))
+                    order.EventType = SanitizeInput(order.EventType);
+                if (!string.IsNullOrEmpty(order.Symbol))
+                    order.Symbol = SanitizeInput(order.Symbol);
+                if (!string.IsNullOrEmpty(order.Direction))
+                    order.Direction = SanitizeInput(order.Direction);
+                if (!string.IsNullOrEmpty(order.OrderType))
+                    order.OrderType = SanitizeInput(order.OrderType);
+                if (!string.IsNullOrEmpty(order.Comment))
+                    order.Comment = SanitizeInput(order.Comment);
+                
                 var orderId = _queueManager.AddOrder(order);
-                _logger.LogInformation($"Order received: {order.EventType} for {order.Symbol}");
+                // Use structured logging with sanitized values
+                _logger.LogInformation("Order received: {EventType} for {Symbol}", 
+                    order.EventType ?? "Unknown", order.Symbol ?? "Unknown");
                 return Ok(new { OrderId = orderId, Status = "Queued" });
             }
             catch (Exception ex)
@@ -187,10 +206,17 @@ namespace Bridge
         {
             try
             {
+                // Validate and sanitize orderId
+                if (string.IsNullOrEmpty(orderId))
+                    return BadRequest(new { Error = "Order ID is required" });
+                
+                orderId = SanitizeInput(orderId);
+                
                 var success = _queueManager.MarkAsProcessed(orderId);
                 if (success)
                 {
-                    _logger.LogInformation($"Order {orderId} marked as processed");
+                    // Use structured logging with sanitized value
+                    _logger.LogInformation("Order {OrderId} marked as processed", orderId);
                     return Ok(new { Status = "Processed" });
                 }
                 return NotFound(new { Error = "Order not found" });
@@ -249,6 +275,27 @@ namespace Bridge
         public IActionResult Health()
         {
             return Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
+        }
+
+        /// <summary>
+        /// Sanitize user input to prevent injection attacks
+        /// Removes control characters including newlines, carriage returns, and tabs
+        /// </summary>
+        private static string SanitizeInput(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input ?? string.Empty;
+            
+            // Remove all control characters (including newlines, tabs, etc.)
+            var sanitized = new StringBuilder(input.Length);
+            foreach (char c in input)
+            {
+                // Allow only printable characters (ASCII 32-126) and common symbols
+                if (c >= 32 && c <= 126)
+                    sanitized.Append(c);
+            }
+            
+            return sanitized.ToString();
         }
     }
 

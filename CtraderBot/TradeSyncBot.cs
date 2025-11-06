@@ -77,7 +77,7 @@ namespace CtraderBot
                 Comment = position.Comment ?? ""
             };
 
-            SendToBlidge(orderData);
+            SendToBridge(orderData);
         }
 
         private void OnPositionClosed(PositionClosedEventArgs args)
@@ -95,7 +95,7 @@ namespace CtraderBot
                 NetProfit = position.NetProfit
             };
 
-            SendToBlidge(orderData);
+            SendToBridge(orderData);
         }
 
         private void OnPositionModified(PositionModifiedEventArgs args)
@@ -113,7 +113,7 @@ namespace CtraderBot
                 TakeProfit = position.TakeProfit
             };
 
-            SendToBlidge(orderData);
+            SendToBridge(orderData);
         }
 
         private void OnPendingOrderCreated(PendingOrderCreatedEventArgs args)
@@ -136,7 +136,7 @@ namespace CtraderBot
                 Comment = order.Comment ?? ""
             };
 
-            SendToBlidge(orderData);
+            SendToBridge(orderData);
         }
 
         private void OnPendingOrderCancelled(PendingOrderCancelledEventArgs args)
@@ -152,7 +152,7 @@ namespace CtraderBot
                 Symbol = order.SymbolName
             };
 
-            SendToBlidge(orderData);
+            SendToBridge(orderData);
         }
 
         private void OnPendingOrderFilled(PendingOrderFilledEventArgs args)
@@ -169,10 +169,10 @@ namespace CtraderBot
                 Symbol = order.SymbolName
             };
 
-            SendToBlidge(orderData);
+            SendToBridge(orderData);
         }
 
-        private async void SendToBlidge(object orderData)
+        private async void SendToBridge(object orderData)
         {
             try
             {
