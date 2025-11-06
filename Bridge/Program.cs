@@ -68,6 +68,7 @@ namespace Bridge
     {
         private readonly PersistentOrderQueueManager _queueManager;
         private readonly ILogger<OrdersController> _logger;
+        private static readonly DateTime ProcessStartTime = DateTime.UtcNow;
 
         public OrdersController(PersistentOrderQueueManager queueManager, ILogger<OrdersController> logger)
         {
@@ -272,7 +273,7 @@ namespace Bridge
                     Timestamp = DateTime.UtcNow,
                     Version = "1.0.0",
                     QueueStatistics = stats,
-                    Uptime = DateTime.UtcNow - System.Diagnostics.Process.GetCurrentProcess().StartTime
+                    Uptime = DateTime.UtcNow - ProcessStartTime
                 };
                 return Ok(status);
             }

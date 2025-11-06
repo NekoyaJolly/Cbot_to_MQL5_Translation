@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -18,12 +19,17 @@ namespace Bridge
         private readonly IConfiguration _configuration;
         private readonly ILogger<RateLimitMiddleware> _logger;
         private readonly ConcurrentDictionary<string, RateLimitInfo> _rateLimitStore = new();
+        private readonly HashSet<string> _whitelistedIPs;
 
         public RateLimitMiddleware(RequestDelegate next, IConfiguration configuration, ILogger<RateLimitMiddleware> logger)
         {
             _next = next;
             _configuration = configuration;
             _logger = logger;
+            
+            // Cache whitelist for performance
+            var whitelist = configuration.GetSection("Bridge:RateLimiting:WhitelistedIPs").Get<string[]>();
+            _whitelistedIPs = whitelist != null ? new HashSet<string>(whitelist) : new HashSet<string>();
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -38,9 +44,8 @@ namespace Bridge
             // Get client IP (handle proxies)
             var clientIp = GetClientIp(context);
 
-            // Check IP whitelist
-            var whitelist = _configuration.GetSection("Bridge:RateLimiting:WhitelistedIPs").Get<string[]>();
-            if (whitelist != null && Array.Exists(whitelist, ip => ip == clientIp))
+            // Check IP whitelist (cached)
+            if (_whitelistedIPs.Contains(clientIp))
             {
                 await _next(context);
                 return;

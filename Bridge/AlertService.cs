@@ -160,6 +160,14 @@ namespace Bridge
                 var password = _configuration["Bridge:Alerts:EmailPassword"];
                 var toEmail = _configuration["Bridge:Alerts:EmailTo"];
 
+                // Validate required configuration
+                if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(username) || 
+                    string.IsNullOrEmpty(password) || string.IsNullOrEmpty(toEmail))
+                {
+                    _logger.LogWarning("Email alert configuration is incomplete, skipping email alert");
+                    return;
+                }
+
                 using var smtpClient = new SmtpClient(smtpHost, smtpPort)
                 {
                     EnableSsl = true,
