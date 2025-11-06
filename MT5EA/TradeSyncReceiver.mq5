@@ -35,7 +35,7 @@ int OnInit()
     // Configure trade object
     trade.SetDeviationInPoints((ulong)SlippagePoints);
     trade.SetExpertMagicNumber(MagicNumber);
-    trade.SetTypeFilling(ORDER_FILLING_FOK);
+    trade.SetTypeFilling(ORDER_FILLING_RETURN);  // Use RETURN instead of FOK for better compatibility
     trade.SetAsyncMode(false);
     
     lastPollTime = TimeCurrent();
@@ -119,12 +119,25 @@ void PollBridgeForOrders()
 //+------------------------------------------------------------------+
 void ProcessOrders(string jsonResponse)
 {
+    // Validate JSON response
+    if(StringLen(jsonResponse) == 0)
+    {
+        Print("Empty JSON response received");
+        return;
+    }
+    
     // Parse JSON array
     CJAVal json;
     if(!json.Deserialize(jsonResponse))
     {
-        Print("Failed to parse JSON response");
+        Print("Failed to parse JSON response: ", StringSubstr(jsonResponse, 0, MathMin(100, StringLen(jsonResponse))));
         return;
+    }
+    
+    // Validate it's an array
+    if(json.Size() == 0)
+    {
+        return; // Empty array, nothing to process
     }
     
     // Process each order
@@ -167,10 +180,9 @@ void ProcessOrders(string jsonResponse)
         }
         
         // Mark order as processed
-        if(success || true) // Always mark as processed to avoid reprocessing
-        {
-            MarkOrderAsProcessed(orderId);
-        }
+        // Always mark as processed to avoid reprocessing, even on failure
+        // Failed orders should be handled through retry logic or manual intervention
+        MarkOrderAsProcessed(orderId);
     }
 }
 
@@ -186,6 +198,25 @@ bool ProcessPositionOpened(CJAVal &order)
     double takeProfit = order["TakeProfit"].ToDbl();
     string comment = order["Comment"].ToStr();
     
+    // Validate required fields
+    if(StringLen(symbol) == 0)
+    {
+        Print("Missing symbol in position opened event");
+        return false;
+    }
+    
+    if(StringLen(direction) == 0)
+    {
+        Print("Missing direction in position opened event");
+        return false;
+    }
+    
+    if(volume <= 0)
+    {
+        Print("Invalid volume: ", volume);
+        return false;
+    }
+    
     // Normalize symbol name if needed
     symbol = NormalizeSymbol(symbol);
     
@@ -194,6 +225,26 @@ bool ProcessPositionOpened(CJAVal &order)
         Print("Invalid or unsupported symbol");
         return false;
     }
+    
+    // Validate volume
+    double volumeMin = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
+    double volumeMax = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
+    double volumeStep = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
+    
+    if(volume < volumeMin)
+    {
+        Print("Volume ", volume, " is below minimum ", volumeMin);
+        volume = volumeMin;
+    }
+    else if(volume > volumeMax)
+    {
+        Print("Volume ", volume, " exceeds maximum ", volumeMax);
+        volume = volumeMax;
+    }
+    
+    // Round volume to valid step
+    if(volumeStep > 0)
+        volume = MathRound(volume / volumeStep) * volumeStep;
     
     // Convert direction to trade type
     ENUM_ORDER_TYPE orderType;
@@ -321,7 +372,45 @@ bool ProcessPendingOrderCreated(CJAVal &order)
     double takeProfit = order["TakeProfit"].ToDbl();
     string comment = order["Comment"].ToStr();
     
+    // Validate required fields
+    if(StringLen(symbol) == 0 || StringLen(orderTypeStr) == 0 || StringLen(direction) == 0)
+    {
+        Print("Missing required fields in pending order");
+        return false;
+    }
+    
+    if(volume <= 0 || targetPrice <= 0)
+    {
+        Print("Invalid volume or target price");
+        return false;
+    }
+    
     symbol = NormalizeSymbol(symbol);
+    
+    if(symbol == "")
+    {
+        Print("Invalid or unsupported symbol");
+        return false;
+    }
+    
+    // Validate volume
+    double volumeMin = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
+    double volumeMax = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
+    double volumeStep = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
+    
+    if(volume < volumeMin)
+    {
+        Print("Volume ", volume, " is below minimum ", volumeMin);
+        volume = volumeMin;
+    }
+    else if(volume > volumeMax)
+    {
+        Print("Volume ", volume, " exceeds maximum ", volumeMax);
+        volume = volumeMax;
+    }
+    
+    if(volumeStep > 0)
+        volume = MathRound(volume / volumeStep) * volumeStep;
     
     // Determine order type
     ENUM_ORDER_TYPE orderType;
