@@ -182,10 +182,24 @@ namespace Bridge
                 if (!string.IsNullOrEmpty(order.Comment))
                     order.Comment = SanitizeInput(order.Comment);
                 
+                // Validate EventType is one of expected values (case-sensitive)
+                var validEventTypes = new HashSet<string>(StringComparer.Ordinal)
+                {
+                    "POSITION_OPENED", "POSITION_CLOSED", "POSITION_MODIFIED",
+                    "PENDING_ORDER_CREATED", "PENDING_ORDER_CANCELLED", "PENDING_ORDER_FILLED"
+                };
+                
+                if (!validEventTypes.Contains(order.EventType))
+                {
+                    // Don't log the actual invalid value to prevent log forging
+                    _logger.LogWarning("Invalid EventType received from request");
+                    return BadRequest(new { Error = "Invalid EventType" });
+                }
+                
                 var orderId = _queueManager.AddOrder(order);
-                // Use structured logging with sanitized values
-                _logger.LogInformation("Order received: {EventType} for {Symbol}", 
-                    order.EventType, order.Symbol);
+                // Log without user-provided value to prevent log forging
+                // EventType is validated above to be one of the safe values
+                _logger.LogInformation("Order received and queued: {OrderId}", orderId);
                 return Ok(new { OrderId = orderId, Status = "Queued" });
             }
             catch (Exception ex)
