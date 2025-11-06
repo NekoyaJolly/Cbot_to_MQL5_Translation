@@ -839,10 +839,10 @@ Cbot to MQL5 Translation システムは包括的なセキュリティレビュ�
 
 ---
 
-**Audit Performed By:** GitHub Copilot Code Audit  
+**Audit Performed By:** Automated Security Analysis with Manual Review  
 **Date:** 2025-11-06  
 **Next Review:** Recommended after 6 months or major code changes
 
-**監査実施者:** GitHub Copilot Code Audit  
+**監査実施者:** 自動セキュリティ分析と手動レビュー  
 **日付:** 2025-11-06  
 **次回レビュー:** 6か月後または主要なコード変更後を推奨

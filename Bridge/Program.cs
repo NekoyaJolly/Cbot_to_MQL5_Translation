@@ -362,7 +362,7 @@ namespace Bridge
                         services.AddControllers()
                             .AddJsonOptions(options =>
                             {
-                                // Limit JSON depth to prevent stack overflow attacks
+                                // Limit JSON depth to prevent stack overflow from deeply nested JSON
                                 options.JsonSerializerOptions.MaxDepth = 32;
                             });
                         services.AddSingleton<OrderQueueManager>();
