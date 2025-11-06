@@ -39,8 +39,11 @@ public:
     {
         for(int i = 0; i < ArraySize(m_items); i++)
         {
-            if(CheckPointer(m_items[i]) == POINTER_DYNAMIC)
+            if(m_items[i] != NULL && CheckPointer(m_items[i]) == POINTER_DYNAMIC)
+            {
                 delete m_items[i];
+                m_items[i] = NULL;
+            }
         }
         ArrayResize(m_items, 0);
     }
@@ -238,9 +241,8 @@ public:
         if(index >= 0 && index < ArraySize(m_items))
             return m_items[index];
         
-        // Return empty item if not found
-        CJAVal* empty = new CJAVal();
-        return empty;
+        // Return NULL if not found - prevents memory leaks
+        return NULL;
     }
     
     // Get item by key (for objects)
@@ -248,13 +250,52 @@ public:
     {
         for(int i = 0; i < ArraySize(m_items); i++)
         {
-            if(m_items[i].m_key == key)
+            if(m_items[i] != NULL && m_items[i].m_key == key)
                 return m_items[i];
         }
         
-        // Return empty item if not found
-        CJAVal* empty = new CJAVal();
-        return empty;
+        // Return NULL if not found - prevents memory leaks
+        return NULL;
+    }
+    
+    // Safe accessor methods to prevent memory leaks
+    string GetStringByKey(string key, string defaultValue = "")
+    {
+        CJAVal* item = this[key];
+        if(item != NULL)
+            return item.ToStr();
+        return defaultValue;
+    }
+    
+    double GetDoubleByKey(string key, double defaultValue = 0.0)
+    {
+        CJAVal* item = this[key];
+        if(item != NULL)
+            return item.ToDbl();
+        return defaultValue;
+    }
+    
+    long GetIntByKey(string key, long defaultValue = 0)
+    {
+        CJAVal* item = this[key];
+        if(item != NULL)
+            return item.ToInt();
+        return defaultValue;
+    }
+    
+    bool GetBoolByKey(string key, bool defaultValue = false)
+    {
+        CJAVal* item = this[key];
+        if(item != NULL)
+            return item.ToBool();
+        return defaultValue;
+    }
+    
+    CJAVal* GetArrayItem(int index)
+    {
+        if(index >= 0 && index < ArraySize(m_items))
+            return m_items[index];
+        return NULL;
     }
     
     // Get array size
