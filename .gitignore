@@ -52,3 +52,12 @@ Thumbs.db
 
 # MT5
 *.ex5
+
+# Bridge runtime files
+Bridge/*.db
+Bridge/*.db-shm
+Bridge/*.db-wal
+Bridge/logs/
+
+# cBot persist directory
+CtraderBot/persist/
