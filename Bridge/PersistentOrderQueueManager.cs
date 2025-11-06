@@ -33,12 +33,12 @@ namespace Bridge
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
             
-            // Remove control characters including newlines, carriage returns, and tabs
+            // Remove control characters to prevent log forging
             var sanitized = new StringBuilder(input.Length);
             foreach (char c in input)
             {
-                // Allow only printable characters (ASCII 32-126)
-                if (c >= 32 && c <= 126)
+                // Allow all characters except control characters
+                if (!char.IsControl(c))
                     sanitized.Append(c);
             }
             

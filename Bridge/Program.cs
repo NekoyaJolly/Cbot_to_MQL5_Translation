@@ -19,6 +19,11 @@ namespace Bridge
 {
     /// <summary>
     /// Trade order data model
+    /// Note: Numeric fields are stored as strings to:
+    /// 1. Preserve exact formatting from cBot (invariant culture)
+    /// 2. Avoid floating-point precision issues
+    /// 3. Pass through to MT5 EA without re-formatting
+    /// The Bridge acts as a message broker and doesn't perform numeric operations.
     /// </summary>
     public class TradeOrder
     {
@@ -31,7 +36,7 @@ namespace Bridge
         public string Symbol { get; set; }
         public string Direction { get; set; }
         public string OrderType { get; set; }
-        public string Volume { get; set; } // Changed to string to preserve invariant culture formatting
+        public string Volume { get; set; } // String to preserve exact formatting from cBot
         public string EntryPrice { get; set; }
         public string TargetPrice { get; set; }
         public string StopLoss { get; set; }

@@ -131,7 +131,7 @@ namespace CtraderBot
                 EntryPrice = position.EntryPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 StopLoss = position.StopLoss?.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 TakeProfit = position.TakeProfit?.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
-                Comment = string.IsNullOrEmpty(position.Comment) ? MasterLabel : position.Comment
+                Comment = position.Comment ?? MasterLabel
             };
 
             SendToBridge(orderData);
@@ -211,7 +211,7 @@ namespace CtraderBot
                 TargetPrice = order.TargetPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 StopLoss = order.StopLoss?.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 TakeProfit = order.TakeProfit?.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
-                Comment = string.IsNullOrEmpty(order.Comment) ? MasterLabel : order.Comment
+                Comment = order.Comment ?? MasterLabel
             };
 
             SendToBridge(orderData);
