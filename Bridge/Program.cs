@@ -49,6 +49,17 @@ namespace Bridge
     }
 
     /// <summary>
+    /// Ticket mapping request model
+    /// </summary>
+    public class TicketMappingRequest
+    {
+        public string SourceTicket { get; set; }
+        public string SlaveTicket { get; set; }
+        public string Symbol { get; set; }
+        public string Lots { get; set; }
+    }
+
+    /// <summary>
     /// API Controller for order management
     /// </summary>
     [ApiController]
@@ -247,6 +258,143 @@ namespace Bridge
         }
 
         /// <summary>
+        /// Get system status and metrics
+        /// </summary>
+        [HttpGet("status")]
+        public IActionResult GetStatus()
+        {
+            try
+            {
+                var stats = _queueManager.GetStatistics();
+                var status = new
+                {
+                    Status = "Running",
+                    Timestamp = DateTime.UtcNow,
+                    Version = "1.0.0",
+                    QueueStatistics = stats,
+                    Uptime = DateTime.UtcNow - System.Diagnostics.Process.GetCurrentProcess().StartTime
+                };
+                return Ok(status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting status");
+                return StatusCode(500, new { Error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Get queue details
+        /// </summary>
+        [HttpGet("queue")]
+        public IActionResult GetQueue([FromQuery] int maxCount = 100)
+        {
+            try
+            {
+                // Validate maxCount
+                if (maxCount < 1)
+                    maxCount = 1;
+                if (maxCount > 100)
+                    maxCount = 100;
+
+                var pendingOrders = _queueManager.GetPendingOrders(maxCount);
+                return Ok(new { Count = pendingOrders.Count, Orders = pendingOrders });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting queue");
+                return StatusCode(500, new { Error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Retry a specific order
+        /// </summary>
+        [HttpPost("retry/{orderId}")]
+        public IActionResult RetryOrder(string orderId)
+        {
+            try
+            {
+                // Validate and sanitize orderId
+                if (string.IsNullOrWhiteSpace(orderId))
+                    return BadRequest(new { Error = "Order ID is required" });
+
+                if (orderId.Length > 50)
+                    return BadRequest(new { Error = "Order ID is invalid" });
+
+                orderId = SanitizeInput(orderId);
+
+                var order = _queueManager.GetOrder(orderId);
+                if (order == null)
+                    return NotFound(new { Error = "Order not found" });
+
+                if (order.Processed)
+                    return BadRequest(new { Error = "Order already processed" });
+
+                // Schedule for immediate retry
+                var success = _queueManager.IncrementRetryCount(orderId, TimeSpan.Zero);
+                if (success)
+                {
+                    _logger.LogInformation("Order {OrderId} scheduled for retry", orderId);
+                    return Ok(new { Status = "Scheduled for retry" });
+                }
+                return StatusCode(500, new { Error = "Failed to schedule retry" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrying order");
+                return StatusCode(500, new { Error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Add ticket mapping from MT5
+        /// </summary>
+        [HttpPost("ticket-map")]
+        public IActionResult AddTicketMapping([FromBody] TicketMappingRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.SourceTicket) || 
+                    string.IsNullOrWhiteSpace(request.SlaveTicket))
+                    return BadRequest(new { Error = "SourceTicket and SlaveTicket are required" });
+
+                _queueManager.AddTicketMapping(request.SourceTicket, request.SlaveTicket, 
+                    request.Symbol ?? "", request.Lots ?? "");
+                return Ok(new { Status = "Mapping added" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding ticket mapping");
+                return StatusCode(500, new { Error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Get slave ticket by source ticket
+        /// </summary>
+        [HttpGet("ticket-map/{sourceTicket}")]
+        public IActionResult GetTicketMapping(string sourceTicket)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(sourceTicket))
+                    return BadRequest(new { Error = "Source ticket is required" });
+
+                var slaveTicket = _queueManager.GetSlaveTicket(sourceTicket);
+                if (slaveTicket != null)
+                    return Ok(new { SourceTicket = sourceTicket, SlaveTicket = slaveTicket });
+                
+                return NotFound(new { Error = "Mapping not found" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting ticket mapping");
+                return StatusCode(500, new { Error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
         /// Sanitize user input to prevent injection attacks
         /// Removes control characters including newlines, carriage returns, and tabs
         /// </summary>
@@ -297,6 +445,9 @@ namespace Bridge
                                 options.JsonSerializerOptions.MaxDepth = 32;
                             });
                         
+                        // Register alert service as singleton
+                        services.AddSingleton<AlertService>();
+                        
                         // Register persistent queue manager as singleton
                         var databasePath = context.Configuration["Bridge:DatabasePath"] ?? "bridge.db";
                         services.AddSingleton<PersistentOrderQueueManager>(sp => 
@@ -327,6 +478,9 @@ namespace Bridge
                     webBuilder.Configure((context, app) =>
                     {
                         app.UseCors();
+                        
+                        // Add rate limiting middleware
+                        app.UseMiddleware<RateLimitMiddleware>();
                         
                         // Add API key authentication middleware
                         app.UseMiddleware<ApiKeyAuthMiddleware>();
