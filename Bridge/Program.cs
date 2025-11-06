@@ -155,11 +155,26 @@ namespace Bridge
                 if (order == null)
                     return BadRequest(new { Error = "Order data is required" });
                 
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(order.EventType))
+                    return BadRequest(new { Error = "EventType is required" });
+                
+                if (string.IsNullOrWhiteSpace(order.Symbol))
+                    return BadRequest(new { Error = "Symbol is required" });
+                
+                // Validate string lengths to prevent excessive data
+                if (order.EventType?.Length > 50)
+                    return BadRequest(new { Error = "EventType is too long" });
+                
+                if (order.Symbol?.Length > 20)
+                    return BadRequest(new { Error = "Symbol is too long" });
+                
+                if (order.Comment?.Length > 500)
+                    order.Comment = order.Comment.Substring(0, 500); // Truncate instead of rejecting
+                
                 // Sanitize string properties to prevent injection attacks
-                if (!string.IsNullOrEmpty(order.EventType))
-                    order.EventType = SanitizeInput(order.EventType);
-                if (!string.IsNullOrEmpty(order.Symbol))
-                    order.Symbol = SanitizeInput(order.Symbol);
+                order.EventType = SanitizeInput(order.EventType);
+                order.Symbol = SanitizeInput(order.Symbol);
                 if (!string.IsNullOrEmpty(order.Direction))
                     order.Direction = SanitizeInput(order.Direction);
                 if (!string.IsNullOrEmpty(order.OrderType))
@@ -167,16 +182,30 @@ namespace Bridge
                 if (!string.IsNullOrEmpty(order.Comment))
                     order.Comment = SanitizeInput(order.Comment);
                 
+                // Validate EventType is one of expected values (case-sensitive)
+                var validEventTypes = new HashSet<string>(StringComparer.Ordinal)
+                {
+                    "POSITION_OPENED", "POSITION_CLOSED", "POSITION_MODIFIED",
+                    "PENDING_ORDER_CREATED", "PENDING_ORDER_CANCELLED", "PENDING_ORDER_FILLED"
+                };
+                
+                if (!validEventTypes.Contains(order.EventType))
+                {
+                    // Don't log the actual invalid value to prevent log forging
+                    _logger.LogWarning("Invalid EventType received from request");
+                    return BadRequest(new { Error = "Invalid EventType" });
+                }
+                
                 var orderId = _queueManager.AddOrder(order);
-                // Use structured logging with sanitized values
-                _logger.LogInformation("Order received: {EventType} for {Symbol}", 
-                    order.EventType ?? "Unknown", order.Symbol ?? "Unknown");
+                // Log without user-provided value to prevent log forging
+                // EventType is validated above to be one of the safe values
+                _logger.LogInformation("Order received and queued: {OrderId}", orderId);
                 return Ok(new { OrderId = orderId, Status = "Queued" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error receiving order");
-                return StatusCode(500, new { Error = ex.Message });
+                return StatusCode(500, new { Error = "Internal server error" });
             }
         }
 
@@ -188,13 +217,19 @@ namespace Bridge
         {
             try
             {
+                // Validate maxCount to prevent abuse
+                if (maxCount < 1)
+                    maxCount = 1;
+                if (maxCount > 100)
+                    maxCount = 100;
+                
                 var orders = _queueManager.GetPendingOrders(maxCount);
                 return Ok(orders);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting pending orders");
-                return StatusCode(500, new { Error = ex.Message });
+                return StatusCode(500, new { Error = "Internal server error" });
             }
         }
 
@@ -236,6 +271,15 @@ namespace Bridge
         {
             try
             {
+                // Validate and sanitize orderId
+                if (string.IsNullOrWhiteSpace(orderId))
+                    return BadRequest(new { Error = "Order ID is required" });
+                
+                if (orderId.Length > 20)
+                    return BadRequest(new { Error = "Order ID is invalid" });
+                
+                orderId = SanitizeInput(orderId);
+                
                 var order = _queueManager.GetOrder(orderId);
                 if (order != null)
                 {
@@ -246,7 +290,7 @@ namespace Bridge
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting order");
-                return StatusCode(500, new { Error = ex.Message });
+                return StatusCode(500, new { Error = "Internal server error" });
             }
         }
 
@@ -264,7 +308,7 @@ namespace Bridge
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting statistics");
-                return StatusCode(500, new { Error = ex.Message });
+                return StatusCode(500, new { Error = "Internal server error" });
             }
         }
 
@@ -315,13 +359,19 @@ namespace Bridge
                 {
                     webBuilder.ConfigureServices(services =>
                     {
-                        services.AddControllers();
+                        services.AddControllers()
+                            .AddJsonOptions(options =>
+                            {
+                                // Limit JSON depth to prevent stack overflow from deeply nested JSON
+                                options.JsonSerializerOptions.MaxDepth = 32;
+                            });
                         services.AddSingleton<OrderQueueManager>();
                         services.AddCors(options =>
                         {
                             options.AddDefaultPolicy(builder =>
                             {
-                                builder.AllowAnyOrigin()
+                                // More restrictive CORS - adjust based on your needs
+                                builder.WithOrigins("http://localhost", "http://127.0.0.1")
                                        .AllowAnyMethod()
                                        .AllowAnyHeader();
                             });
