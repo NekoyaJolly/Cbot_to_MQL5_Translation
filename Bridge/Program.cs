@@ -8,9 +8,12 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using Prometheus;
 
 namespace Bridge
 {
@@ -20,6 +23,7 @@ namespace Bridge
     public class TradeOrder
     {
         public string Id { get; set; }
+        public string SourceId { get; set; } // Unique identifier from master (PositionId/OrderId)
         public string EventType { get; set; }
         public DateTime Timestamp { get; set; }
         public long? PositionId { get; set; }
@@ -27,104 +31,16 @@ namespace Bridge
         public string Symbol { get; set; }
         public string Direction { get; set; }
         public string OrderType { get; set; }
-        public double? Volume { get; set; }
-        public double? EntryPrice { get; set; }
-        public double? TargetPrice { get; set; }
-        public double? StopLoss { get; set; }
-        public double? TakeProfit { get; set; }
-        public double? ClosingPrice { get; set; }
-        public double? NetProfit { get; set; }
+        public string Volume { get; set; } // Changed to string to preserve invariant culture formatting
+        public string EntryPrice { get; set; }
+        public string TargetPrice { get; set; }
+        public string StopLoss { get; set; }
+        public string TakeProfit { get; set; }
+        public string ClosingPrice { get; set; }
+        public string NetProfit { get; set; }
         public string Comment { get; set; }
         public bool Processed { get; set; }
         public DateTime? ProcessedAt { get; set; }
-    }
-
-    /// <summary>
-    /// Thread-safe order queue manager
-    /// </summary>
-    public class OrderQueueManager
-    {
-        private readonly ConcurrentDictionary<string, TradeOrder> _orders = new ConcurrentDictionary<string, TradeOrder>();
-        private readonly ConcurrentQueue<string> _orderQueue = new ConcurrentQueue<string>();
-        private long _orderCounter = 0;
-
-        public string AddOrder(TradeOrder order)
-        {
-            order.Id = Interlocked.Increment(ref _orderCounter).ToString();
-            order.Processed = false;
-            order.Timestamp = DateTime.UtcNow;
-
-            _orders[order.Id] = order;
-            _orderQueue.Enqueue(order.Id);
-
-            return order.Id;
-        }
-
-        public List<TradeOrder> GetPendingOrders(int maxCount = 10)
-        {
-            var orders = new List<TradeOrder>();
-            var processedIds = new List<string>();
-
-            while (orders.Count < maxCount && _orderQueue.TryPeek(out var orderId))
-            {
-                if (_orders.TryGetValue(orderId, out var order) && !order.Processed)
-                {
-                    orders.Add(order);
-                    _orderQueue.TryDequeue(out _);
-                    processedIds.Add(orderId);
-                }
-                else
-                {
-                    _orderQueue.TryDequeue(out _);
-                }
-            }
-
-            return orders;
-        }
-
-        public bool MarkAsProcessed(string orderId)
-        {
-            if (_orders.TryGetValue(orderId, out var order))
-            {
-                order.Processed = true;
-                order.ProcessedAt = DateTime.UtcNow;
-                return true;
-            }
-            return false;
-        }
-
-        public TradeOrder GetOrder(string orderId)
-        {
-            _orders.TryGetValue(orderId, out var order);
-            return order;
-        }
-
-        public Dictionary<string, object> GetStatistics()
-        {
-            var now = DateTime.UtcNow;
-            var last5Minutes = now.AddMinutes(-5);
-
-            return new Dictionary<string, object>
-            {
-                { "TotalOrders", _orders.Count },
-                { "PendingOrders", _orders.Values.Count(o => !o.Processed) },
-                { "ProcessedOrders", _orders.Values.Count(o => o.Processed) },
-                { "OrdersLast5Min", _orders.Values.Count(o => o.Timestamp >= last5Minutes) }
-            };
-        }
-
-        public void CleanupOldOrders(TimeSpan maxAge)
-        {
-            var cutoffTime = DateTime.UtcNow - maxAge;
-            var oldOrders = _orders.Where(kvp => kvp.Value.Processed && kvp.Value.ProcessedAt < cutoffTime)
-                                   .Select(kvp => kvp.Key)
-                                   .ToList();
-
-            foreach (var orderId in oldOrders)
-            {
-                _orders.TryRemove(orderId, out _);
-            }
-        }
     }
 
     /// <summary>
@@ -134,10 +50,10 @@ namespace Bridge
     [Route("api")]
     public class OrdersController : ControllerBase
     {
-        private readonly OrderQueueManager _queueManager;
+        private readonly PersistentOrderQueueManager _queueManager;
         private readonly ILogger<OrdersController> _logger;
 
-        public OrdersController(OrderQueueManager queueManager, ILogger<OrdersController> logger)
+        public OrdersController(PersistentOrderQueueManager queueManager, ILogger<OrdersController> logger)
         {
             _queueManager = queueManager;
             _logger = logger;
@@ -161,6 +77,10 @@ namespace Bridge
                 
                 if (string.IsNullOrWhiteSpace(order.Symbol))
                     return BadRequest(new { Error = "Symbol is required" });
+                
+                // Validate SourceId is required (for idempotency)
+                if (string.IsNullOrWhiteSpace(order.SourceId))
+                    return BadRequest(new { Error = "SourceId is required" });
                 
                 // Validate string lengths to prevent excessive data
                 if (order.EventType?.Length > 50)
@@ -355,9 +275,15 @@ namespace Bridge
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSerilog((context, services, configuration) => configuration
+                    .ReadFrom.Configuration(context.Configuration)
+                    .ReadFrom.Services(services)
+                    .Enrich.FromLogContext()
+                    .WriteTo.Console()
+                    .WriteTo.File("logs/bridge-.log", rollingInterval: Serilog.RollingInterval.Day))
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.ConfigureServices(services =>
+                    webBuilder.ConfigureServices((context, services) =>
                     {
                         services.AddControllers()
                             .AddJsonOptions(options =>
@@ -365,7 +291,15 @@ namespace Bridge
                                 // Limit JSON depth to prevent stack overflow from deeply nested JSON
                                 options.JsonSerializerOptions.MaxDepth = 32;
                             });
-                        services.AddSingleton<OrderQueueManager>();
+                        
+                        // Register persistent queue manager as singleton
+                        var databasePath = context.Configuration["Bridge:DatabasePath"] ?? "bridge.db";
+                        services.AddSingleton<PersistentOrderQueueManager>(sp => 
+                        {
+                            var logger = sp.GetRequiredService<ILogger<PersistentOrderQueueManager>>();
+                            return new PersistentOrderQueueManager(databasePath, logger);
+                        });
+                        
                         services.AddCors(options =>
                         {
                             options.AddDefaultPolicy(builder =>
@@ -379,19 +313,29 @@ namespace Bridge
 
                         // Add background service for cleanup
                         services.AddHostedService<CleanupService>();
+                        
+                        // Get listen URL from configuration
+                        var listenUrl = context.Configuration["Bridge:ListenUrl"] ?? "http://0.0.0.0:5000";
+                        webBuilder.UseUrls(listenUrl);
                     });
 
                     webBuilder.Configure((context, app) =>
                     {
                         app.UseCors();
+                        
+                        // Add API key authentication middleware
+                        app.UseMiddleware<ApiKeyAuthMiddleware>();
+                        
+                        // Add Prometheus metrics endpoint
+                        app.UseMetricServer();
+                        app.UseHttpMetrics();
+                        
                         app.UseRouting();
                         app.UseEndpoints(endpoints =>
                         {
                             endpoints.MapControllers();
                         });
                     });
-
-                    webBuilder.UseUrls("http://0.0.0.0:5000");
                 });
     }
 
@@ -400,27 +344,35 @@ namespace Bridge
     /// </summary>
     public class CleanupService : BackgroundService
     {
-        private readonly OrderQueueManager _queueManager;
+        private readonly PersistentOrderQueueManager _queueManager;
         private readonly ILogger<CleanupService> _logger;
+        private readonly IConfiguration _configuration;
 
-        public CleanupService(OrderQueueManager queueManager, ILogger<CleanupService> logger)
+        public CleanupService(PersistentOrderQueueManager queueManager, ILogger<CleanupService> logger, IConfiguration configuration)
         {
             _queueManager = queueManager;
             _logger = logger;
+            _configuration = configuration;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            var maxAge = _configuration.GetValue("Bridge:MaxOrderAge", TimeSpan.FromHours(1));
+            var interval = _configuration.GetValue("Bridge:CleanupInterval", TimeSpan.FromMinutes(10));
+            
+            _logger.LogInformation("CleanupService started: MaxAge={MaxAge}, Interval={Interval}", maxAge, interval);
+            
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    _queueManager.CleanupOldOrders(TimeSpan.FromHours(1));
-                    await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
+                    _queueManager.CleanupOldOrders(maxAge);
+                    await Task.Delay(interval, stoppingToken);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error in cleanup service");
+                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                 }
             }
         }
