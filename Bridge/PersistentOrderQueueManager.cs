@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,28 @@ namespace Bridge
             _connectionString = $"Data Source={databasePath}";
             _logger = logger;
             InitializeDatabase();
+        }
+
+        /// <summary>
+        /// Sanitize string for logging to prevent log forging
+        /// </summary>
+        private static string SanitizeForLog(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return string.Empty;
+            
+            // Remove control characters including newlines, carriage returns, and tabs
+            var sanitized = new StringBuilder(input.Length);
+            foreach (char c in input)
+            {
+                // Allow only printable characters (ASCII 32-126)
+                if (c >= 32 && c <= 126)
+                    sanitized.Append(c);
+            }
+            
+            // Limit length to prevent log bloat
+            var result = sanitized.ToString();
+            return result.Length > 100 ? result.Substring(0, 100) + "..." : result;
         }
 
         private void InitializeDatabase()
@@ -89,7 +112,7 @@ namespace Bridge
                     if (existingId != null)
                     {
                         _logger.LogInformation("Order with SourceId {SourceId} and EventType {EventType} already exists, skipping duplicate", 
-                            order.SourceId, order.EventType);
+                            SanitizeForLog(order.SourceId), SanitizeForLog(order.EventType));
                         return existingId;
                     }
                 }
@@ -131,7 +154,7 @@ namespace Bridge
                 command.ExecuteNonQuery();
 
                 _logger.LogInformation("Order added: Id={Id}, SourceId={SourceId}, EventType={EventType}", 
-                    order.Id, order.SourceId, order.EventType);
+                    SanitizeForLog(order.Id), SanitizeForLog(order.SourceId), SanitizeForLog(order.EventType));
 
                 return order.Id;
             }
@@ -184,7 +207,7 @@ namespace Bridge
                 
                 if (rowsAffected > 0)
                 {
-                    _logger.LogInformation("Order marked as processed: Id={Id}", orderId);
+                    _logger.LogInformation("Order marked as processed: Id={Id}", SanitizeForLog(orderId));
                     return true;
                 }
                 
