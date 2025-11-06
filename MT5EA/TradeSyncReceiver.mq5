@@ -272,7 +272,7 @@ void ProcessOrders(string jsonResponse)
 //+------------------------------------------------------------------+
 //| Process position opened event                                     |
 //+------------------------------------------------------------------+
-bool ProcessPositionOpened(CJAVal* &order)
+bool ProcessPositionOpened(CJAVal* order)
 {
     string sourceId = order.GetStringByKey("Id");
     string symbol = order.GetStringByKey("Symbol");
@@ -398,7 +398,7 @@ bool ProcessPositionOpened(CJAVal* &order)
 //+------------------------------------------------------------------+
 //| Process position closed event                                     |
 //+------------------------------------------------------------------+
-bool ProcessPositionClosed(CJAVal* &order)
+bool ProcessPositionClosed(CJAVal* order)
 {
     string sourceId = order.GetStringByKey("Id");
     string symbol = order.GetStringByKey("Symbol");
@@ -460,7 +460,7 @@ bool ProcessPositionClosed(CJAVal* &order)
 //+------------------------------------------------------------------+
 //| Process position modified event                                   |
 //+------------------------------------------------------------------+
-bool ProcessPositionModified(CJAVal* &order)
+bool ProcessPositionModified(CJAVal* order)
 {
     string sourceId = order.GetStringByKey("Id");
     string symbol = order.GetStringByKey("Symbol");
@@ -530,7 +530,7 @@ bool ProcessPositionModified(CJAVal* &order)
 //+------------------------------------------------------------------+
 //| Process pending order created event                               |
 //+------------------------------------------------------------------+
-bool ProcessPendingOrderCreated(CJAVal* &order)
+bool ProcessPendingOrderCreated(CJAVal* order)
 {
     string sourceId = order.GetStringByKey("Id");
     string symbol = order.GetStringByKey("Symbol");
@@ -639,7 +639,7 @@ bool ProcessPendingOrderCreated(CJAVal* &order)
 //+------------------------------------------------------------------+
 //| Process pending order cancelled event                             |
 //+------------------------------------------------------------------+
-bool ProcessPendingOrderCancelled(CJAVal* &order)
+bool ProcessPendingOrderCancelled(CJAVal* order)
 {
     string sourceId = order.GetStringByKey("Id");
     string symbol = order.GetStringByKey("Symbol");

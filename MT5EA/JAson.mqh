@@ -261,33 +261,41 @@ public:
     // Safe accessor methods to prevent memory leaks
     string GetStringByKey(string key, string defaultValue = "")
     {
-        CJAVal* item = this[key];
-        if(item != NULL)
-            return item.ToStr();
+        for(int i = 0; i < ArraySize(m_items); i++)
+        {
+            if(m_items[i] != NULL && m_items[i].m_key == key)
+                return m_items[i].ToStr();
+        }
         return defaultValue;
     }
     
     double GetDoubleByKey(string key, double defaultValue = 0.0)
     {
-        CJAVal* item = this[key];
-        if(item != NULL)
-            return item.ToDbl();
+        for(int i = 0; i < ArraySize(m_items); i++)
+        {
+            if(m_items[i] != NULL && m_items[i].m_key == key)
+                return m_items[i].ToDbl();
+        }
         return defaultValue;
     }
     
     long GetIntByKey(string key, long defaultValue = 0)
     {
-        CJAVal* item = this[key];
-        if(item != NULL)
-            return item.ToInt();
+        for(int i = 0; i < ArraySize(m_items); i++)
+        {
+            if(m_items[i] != NULL && m_items[i].m_key == key)
+                return m_items[i].ToInt();
+        }
         return defaultValue;
     }
     
     bool GetBoolByKey(string key, bool defaultValue = false)
     {
-        CJAVal* item = this[key];
-        if(item != NULL)
-            return item.ToBool();
+        for(int i = 0; i < ArraySize(m_items); i++)
+        {
+            if(m_items[i] != NULL && m_items[i].m_key == key)
+                return m_items[i].ToBool();
+        }
         return defaultValue;
     }
     
