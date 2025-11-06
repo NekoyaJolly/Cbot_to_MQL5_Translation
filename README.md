@@ -69,7 +69,7 @@ For detailed setup instructions, troubleshooting, and API reference, please refe
 
 ## 必要な環境 / Requirements
 
-- .NET 6.0 SDK以上 / .NET 6.0 SDK or higher
+- .NET 8.0 SDK以上 / .NET 8.0 SDK or higher
 - Ctrader with cAlgo
 - MetaTrader 5
 

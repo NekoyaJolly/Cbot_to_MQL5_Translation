@@ -37,7 +37,7 @@ Ctrader (cBot/C#) → HTTP → Bridge Server (C#/.NET) → HTTP → MT5 (MQL5 EA
 ### 1. Bridge Server Setup
 
 #### Requirements
-- .NET 6.0 SDK or higher
+- .NET 8.0 SDK or higher
 
 #### Installation and Startup
 
