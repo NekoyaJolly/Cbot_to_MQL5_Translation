@@ -75,12 +75,29 @@ namespace Bridge
                     Processed INTEGER NOT NULL DEFAULT 0,
                     ProcessedAt TEXT,
                     CreatedAt TEXT NOT NULL,
+                    RetryCount INTEGER NOT NULL DEFAULT 0,
+                    LastRetryAt TEXT,
+                    NextRetryAt TEXT,
                     UNIQUE(SourceId, EventType)
                 );
                 
                 CREATE INDEX IF NOT EXISTS idx_orders_processed ON Orders(Processed);
                 CREATE INDEX IF NOT EXISTS idx_orders_sourceid ON Orders(SourceId);
                 CREATE INDEX IF NOT EXISTS idx_orders_timestamp ON Orders(Timestamp);
+                CREATE INDEX IF NOT EXISTS idx_orders_retry ON Orders(NextRetryAt) WHERE Processed = 0;
+                
+                CREATE TABLE IF NOT EXISTS TicketMap (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    SourceTicket TEXT NOT NULL,
+                    SlaveTicket TEXT NOT NULL,
+                    Symbol TEXT NOT NULL,
+                    Lots TEXT NOT NULL,
+                    CreatedAt TEXT NOT NULL,
+                    UNIQUE(SourceTicket)
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_ticketmap_source ON TicketMap(SourceTicket);
+                CREATE INDEX IF NOT EXISTS idx_ticketmap_slave ON TicketMap(SlaveTicket);
             ";
             command.ExecuteNonQuery();
 
@@ -123,12 +140,12 @@ namespace Bridge
                         Id, SourceId, EventType, Timestamp, PositionId, OrderId, Symbol, 
                         Direction, OrderType, Volume, EntryPrice, TargetPrice, 
                         StopLoss, TakeProfit, ClosingPrice, NetProfit, Comment, 
-                        Processed, ProcessedAt, CreatedAt
+                        Processed, ProcessedAt, CreatedAt, RetryCount, LastRetryAt, NextRetryAt
                     ) VALUES (
                         @Id, @SourceId, @EventType, @Timestamp, @PositionId, @OrderId, @Symbol,
                         @Direction, @OrderType, @Volume, @EntryPrice, @TargetPrice,
                         @StopLoss, @TakeProfit, @ClosingPrice, @NetProfit, @Comment,
-                        0, NULL, @CreatedAt
+                        0, NULL, @CreatedAt, @RetryCount, @LastRetryAt, @NextRetryAt
                     )
                 ";
 
@@ -150,6 +167,9 @@ namespace Bridge
                 command.Parameters.AddWithValue("@NetProfit", order.NetProfit ?? (object)DBNull.Value);
                 command.Parameters.AddWithValue("@Comment", order.Comment ?? (object)DBNull.Value);
                 command.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow.ToString("o"));
+                command.Parameters.AddWithValue("@RetryCount", 0);
+                command.Parameters.AddWithValue("@LastRetryAt", DBNull.Value);
+                command.Parameters.AddWithValue("@NextRetryAt", DBNull.Value);
 
                 command.ExecuteNonQuery();
 
@@ -316,6 +336,111 @@ namespace Bridge
         public void Dispose()
         {
             SqliteConnection.ClearAllPools();
+        }
+
+        /// <summary>
+        /// Add a ticket mapping between source and slave
+        /// </summary>
+        public void AddTicketMapping(string sourceTicket, string slaveTicket, string symbol, string lots)
+        {
+            lock (_lock)
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    INSERT OR REPLACE INTO TicketMap (SourceTicket, SlaveTicket, Symbol, Lots, CreatedAt)
+                    VALUES (@SourceTicket, @SlaveTicket, @Symbol, @Lots, @CreatedAt)
+                ";
+                command.Parameters.AddWithValue("@SourceTicket", sourceTicket);
+                command.Parameters.AddWithValue("@SlaveTicket", slaveTicket);
+                command.Parameters.AddWithValue("@Symbol", symbol);
+                command.Parameters.AddWithValue("@Lots", lots);
+                command.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow.ToString("o"));
+                
+                command.ExecuteNonQuery();
+                _logger.LogInformation("Ticket mapping added: Source={Source}, Slave={Slave}", 
+                    SanitizeForLog(sourceTicket), SanitizeForLog(slaveTicket));
+            }
+        }
+
+        /// <summary>
+        /// Get slave ticket by source ticket
+        /// </summary>
+        public string GetSlaveTicket(string sourceTicket)
+        {
+            lock (_lock)
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = "SELECT SlaveTicket FROM TicketMap WHERE SourceTicket = @SourceTicket";
+                command.Parameters.AddWithValue("@SourceTicket", sourceTicket);
+                
+                return command.ExecuteScalar() as string;
+            }
+        }
+
+        /// <summary>
+        /// Increment retry count for a failed order
+        /// </summary>
+        public bool IncrementRetryCount(string orderId, TimeSpan retryDelay)
+        {
+            lock (_lock)
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    UPDATE Orders 
+                    SET RetryCount = RetryCount + 1, 
+                        LastRetryAt = @LastRetryAt,
+                        NextRetryAt = @NextRetryAt
+                    WHERE Id = @Id AND Processed = 0
+                ";
+                command.Parameters.AddWithValue("@Id", orderId);
+                command.Parameters.AddWithValue("@LastRetryAt", DateTime.UtcNow.ToString("o"));
+                command.Parameters.AddWithValue("@NextRetryAt", DateTime.UtcNow.Add(retryDelay).ToString("o"));
+
+                var rowsAffected = command.ExecuteNonQuery();
+                return rowsAffected > 0;
+            }
+        }
+
+        /// <summary>
+        /// Get orders ready for retry
+        /// </summary>
+        public List<TradeOrder> GetOrdersForRetry(int maxCount = 10)
+        {
+            lock (_lock)
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT * FROM Orders 
+                    WHERE Processed = 0 
+                    AND NextRetryAt IS NOT NULL 
+                    AND NextRetryAt <= @Now
+                    ORDER BY NextRetryAt 
+                    LIMIT @MaxCount
+                ";
+                command.Parameters.AddWithValue("@Now", DateTime.UtcNow.ToString("o"));
+                command.Parameters.AddWithValue("@MaxCount", maxCount);
+
+                var orders = new List<TradeOrder>();
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    orders.Add(ReadOrder(reader));
+                }
+
+                return orders;
+            }
         }
     }
 }
