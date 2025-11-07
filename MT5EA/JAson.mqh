@@ -199,9 +199,23 @@ public:
         {
             ushort ch = StringGetCharacter(json, i);
             
-            if(ch == '"' && (i == 0 || StringGetCharacter(json, i - 1) != '\\'))
+            // Improved escape handling: count consecutive backslashes
+            if(ch == '"')
             {
-                inString = !inString;
+                // Count preceding backslashes
+                int backslashCount = 0;
+                int j = i - 1;
+                while(j >= 0 && StringGetCharacter(json, j) == '\\')
+                {
+                    backslashCount++;
+                    j--;
+                }
+                
+                // Toggle string state only if even number of backslashes (unescaped quote)
+                if(backslashCount % 2 == 0)
+                {
+                    inString = !inString;
+                }
             }
             
             if(!inString)
@@ -343,7 +357,7 @@ public:
         return m_str_value == "true";
     }
     
-    // Unescape JSON string (handle \", \\, \n, \r, \t, \/)
+    // Unescape JSON string (handle \", \\, \n, \r, \t, \/, \b, \f, \uXXXX)
     static string UnescapeString(string value)
     {
         string result = "";
@@ -386,6 +400,86 @@ public:
                 {
                     result += "/";
                     i++;
+                }
+                else if(nextCh == 'b')
+                {
+                    result += "\b";
+                    i++;
+                }
+                else if(nextCh == 'f')
+                {
+                    result += "\f";
+                    i++;
+                }
+                else if(nextCh == 'u' && i + 5 <= len)
+                {
+                    // Handle Unicode escape sequence \uXXXX
+                    // Need to check we have at least 4 hex digits after \u
+                    string hexStr = "";
+                    bool validHex = true;
+                    
+                    // Extract 4 hex digits
+                    for(int j = 0; j < 4; j++)
+                    {
+                        if(i + 2 + j > len - 1)
+                        {
+                            validHex = false;
+                            break;
+                        }
+                        
+                        ushort hexCh = StringGetCharacter(value, i + 2 + j);
+                        if((hexCh >= '0' && hexCh <= '9') || 
+                           (hexCh >= 'a' && hexCh <= 'f') || 
+                           (hexCh >= 'A' && hexCh <= 'F'))
+                        {
+                            hexStr += CharToString(hexCh);
+                        }
+                        else
+                        {
+                            validHex = false;
+                            break;
+                        }
+                    }
+                    
+                    if(validHex && StringLen(hexStr) == 4)
+                    {
+                        // Convert hex string to unicode codepoint
+                        int codepoint = 0;
+                        for(int k = 0; k < 4; k++)
+                        {
+                            ushort digit = StringGetCharacter(hexStr, k);
+                            int digitValue = 0;
+                            
+                            if(digit >= '0' && digit <= '9')
+                                digitValue = digit - '0';
+                            else if(digit >= 'a' && digit <= 'f')
+                                digitValue = digit - 'a' + 10;
+                            else if(digit >= 'A' && digit <= 'F')
+                                digitValue = digit - 'A' + 10;
+                            
+                            codepoint = codepoint * 16 + digitValue;
+                        }
+                        
+                        // Add the character (MQL5 uses ushort for characters)
+                        if(codepoint > 0 && codepoint <= 65535)
+                        {
+                            result += CharToString((ushort)codepoint);
+                        }
+                        else
+                        {
+                            // Invalid codepoint, keep original sequence
+                            result += CharToString(ch);
+                            result += CharToString(nextCh);
+                            result += hexStr;
+                        }
+                        
+                        i += 5; // Skip \uXXXX
+                    }
+                    else
+                    {
+                        // Invalid hex sequence, keep backslash
+                        result += CharToString(ch);
+                    }
                 }
                 else
                 {

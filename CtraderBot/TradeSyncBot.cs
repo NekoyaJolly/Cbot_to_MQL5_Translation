@@ -498,6 +498,8 @@ namespace CtraderBot
                     return;
 
                 var messageCount = 0;
+                const int MAX_MESSAGES_TO_LOAD = 10000; // Prevent memory exhaustion
+                const int FILE_SIZE_BUFFER_MULTIPLIER = 2; // Allow 2x buffer to handle transient size increases
                 
                 // Load from main persist file
                 if (System.IO.File.Exists(_persistFile))
@@ -506,18 +508,77 @@ namespace CtraderBot
                     {
                         try
                         {
+                            // Check file size to prevent loading extremely large files
+                            var fileInfo = new System.IO.FileInfo(_persistFile);
+                            var maxFileSize = MaxPersistFileSizeMB * 1024 * 1024;
+                            
+                            if (fileInfo.Length > maxFileSize * FILE_SIZE_BUFFER_MULTIPLIER)
+                            {
+                                Print("Warning: Persist file {0} is too large ({1} bytes). Rotating before loading.", 
+                                      _persistFile, fileInfo.Length);
+                                RotatePersistFile();
+                                return;
+                            }
+                            
                             var lines = System.IO.File.ReadAllLines(_persistFile);
+                            var validLineCount = 0;
+                            
                             foreach (var line in lines)
                             {
+                                if (messageCount >= MAX_MESSAGES_TO_LOAD)
+                                {
+                                    Print("Warning: Maximum message load limit ({0}) reached. Remaining messages will be loaded on next restart.", 
+                                          MAX_MESSAGES_TO_LOAD);
+                                    break;
+                                }
+                                
                                 if (!string.IsNullOrWhiteSpace(line))
                                 {
-                                    _failedMessagesQueue.Enqueue(line);
-                                    messageCount++;
+                                    // Validate JSON structure before enqueueing
+                                    // Use lightweight validation by checking basic JSON structure
+                                    var trimmedLine = line.Trim();
+                                    if ((trimmedLine.StartsWith("{") && trimmedLine.EndsWith("}")) ||
+                                        (trimmedLine.StartsWith("[") && trimmedLine.EndsWith("]")))
+                                    {
+                                        try
+                                        {
+                                            // Only deserialize for validation, don't store result
+                                            Newtonsoft.Json.JsonConvert.DeserializeObject<object>(line);
+                                            _failedMessagesQueue.Enqueue(line);
+                                            messageCount++;
+                                            validLineCount++;
+                                        }
+                                        catch (Newtonsoft.Json.JsonException ex)
+                                        {
+                                            Print("Warning: Skipping corrupted JSON line in persist file: {0}", ex.Message);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Print("Warning: Skipping line with invalid JSON structure");
+                                    }
                                 }
                             }
                             
-                            // Clear the file after loading
-                            System.IO.File.WriteAllText(_persistFile, string.Empty);
+                            // Clear the file after loading valid entries
+                            if (validLineCount > 0)
+                            {
+                                System.IO.File.WriteAllText(_persistFile, string.Empty);
+                            }
+                            else if (lines.Length > 0)
+                            {
+                                Print("Warning: Persist file contained no valid entries. File may be corrupted.");
+                                // Rotate corrupted file instead of deleting
+                                RotatePersistFile();
+                            }
+                        }
+                        catch (System.IO.IOException ex)
+                        {
+                            Print("Error loading failed messages from {0}: {1}", _persistFile, ex.Message);
+                        }
+                        catch (System.UnauthorizedAccessException ex)
+                        {
+                            Print("Error: Access denied loading {0}: {1}", _persistFile, ex.Message);
                         }
                         catch (Exception ex)
                         {
@@ -530,20 +591,52 @@ namespace CtraderBot
                 var oldFiles = System.IO.Directory.GetFiles(_persistDir, "failed_*.log");
                 foreach (var file in oldFiles)
                 {
+                    if (messageCount >= MAX_MESSAGES_TO_LOAD)
+                    {
+                        Print("Warning: Maximum message load limit ({0}) reached. Skipping remaining old-style files.", 
+                              MAX_MESSAGES_TO_LOAD);
+                        break;
+                    }
+                    
                     try
                     {
                         var lines = System.IO.File.ReadAllLines(file);
+                        var validLineCount = 0;
+                        
                         foreach (var line in lines)
                         {
+                            if (messageCount >= MAX_MESSAGES_TO_LOAD)
+                                break;
+                            
                             if (!string.IsNullOrWhiteSpace(line))
                             {
-                                _failedMessagesQueue.Enqueue(line);
-                                messageCount++;
+                                // Validate JSON before enqueueing with lightweight check
+                                var trimmedLine = line.Trim();
+                                if ((trimmedLine.StartsWith("{") && trimmedLine.EndsWith("}")) ||
+                                    (trimmedLine.StartsWith("[") && trimmedLine.EndsWith("]")))
+                                {
+                                    try
+                                    {
+                                        Newtonsoft.Json.JsonConvert.DeserializeObject<object>(line);
+                                        _failedMessagesQueue.Enqueue(line);
+                                        messageCount++;
+                                        validLineCount++;
+                                    }
+                                    catch (Newtonsoft.Json.JsonException)
+                                    {
+                                        // Skip corrupted lines silently for old files
+                                    }
+                                }
                             }
                         }
                         
                         // Delete the old file after loading
                         System.IO.File.Delete(file);
+                        
+                        if (validLineCount > 0)
+                        {
+                            Print("Loaded {0} valid messages from old-style file: {1}", validLineCount, file);
+                        }
                     }
                     catch (Exception ex)
                     {
