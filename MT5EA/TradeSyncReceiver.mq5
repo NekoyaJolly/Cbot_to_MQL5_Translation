@@ -931,11 +931,6 @@ void LogFailedRequest(string orderId, string eventType, string reason, string js
             
             // Reopen for writing (this will create a new file)
             fileHandle = FileOpen(g_failedRequestsFile, FILE_WRITE|FILE_READ|FILE_SHARE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);
-        }
-        else
-        {
-            FileSeek(fileHandle, 0, SEEK_END);
-        }
         
         // Sanitize input to prevent log injection
         string sanitizedOrderId = orderId;
@@ -1085,12 +1080,11 @@ void LoadTicketMappingsFromFile()
                 {
                     sourceId = FileReadString(fileHandle, sourceIdLen);
                     
-                    // Validate we actually read data (basic validation)
-                    // Note: For binary strings with embedded nulls, StringLen may differ from sourceIdLen
-                    // We accept this limitation since sourceIds are typically ASCII identifiers
-                    if(StringLen(sourceId) == 0 && sourceIdLen > 0)
+                    // Basic validation: sourceIds should be non-empty ASCII identifiers
+                    // We don't support binary data with embedded nulls for sourceId
+                    if(StringLen(sourceId) == 0)
                     {
-                        Print("Warning: Failed to read sourceId at entry ", i, ". File may be corrupted. Skipping remaining.");
+                        Print("Warning: Empty or corrupted sourceId at entry ", i, ". File may be corrupted. Skipping remaining.");
                         break;
                     }
                 }

@@ -411,15 +411,22 @@ public:
                     result += "\f";
                     i++;
                 }
-                else if(nextCh == 'u' && i + 5 < len)
+                else if(nextCh == 'u' && i + 5 <= len)
                 {
                     // Handle Unicode escape sequence \uXXXX
+                    // Need to check we have at least 4 hex digits after \u
                     string hexStr = "";
                     bool validHex = true;
                     
                     // Extract 4 hex digits
                     for(int j = 0; j < 4; j++)
                     {
+                        if(i + 2 + j >= len)
+                        {
+                            validHex = false;
+                            break;
+                        }
+                        
                         ushort hexCh = StringGetCharacter(value, i + 2 + j);
                         if((hexCh >= '0' && hexCh <= '9') || 
                            (hexCh >= 'a' && hexCh <= 'f') || 

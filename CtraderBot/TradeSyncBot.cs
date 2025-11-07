@@ -535,23 +535,27 @@ namespace CtraderBot
                                 if (!string.IsNullOrWhiteSpace(line))
                                 {
                                     // Validate JSON structure before enqueueing
-                                    try
+                                    // Use lightweight validation by checking basic JSON structure
+                                    var trimmedLine = line.Trim();
+                                    if ((trimmedLine.StartsWith("{") && trimmedLine.EndsWith("}")) ||
+                                        (trimmedLine.StartsWith("[") && trimmedLine.EndsWith("]")))
                                     {
-                                        var testParse = Newtonsoft.Json.JsonConvert.DeserializeObject(line);
-                                        if (testParse != null)
+                                        try
                                         {
+                                            // Only deserialize for validation, don't store result
+                                            Newtonsoft.Json.JsonConvert.DeserializeObject<object>(line);
                                             _failedMessagesQueue.Enqueue(line);
                                             messageCount++;
                                             validLineCount++;
                                         }
-                                        else
+                                        catch (Newtonsoft.Json.JsonException ex)
                                         {
-                                            Print("Warning: Skipping invalid JSON line in persist file (null parse result)");
+                                            Print("Warning: Skipping corrupted JSON line in persist file: {0}", ex.Message);
                                         }
                                     }
-                                    catch (Newtonsoft.Json.JsonException ex)
+                                    else
                                     {
-                                        Print("Warning: Skipping corrupted JSON line in persist file: {0}", ex.Message);
+                                        Print("Warning: Skipping line with invalid JSON structure");
                                     }
                                 }
                             }
@@ -606,20 +610,22 @@ namespace CtraderBot
                             
                             if (!string.IsNullOrWhiteSpace(line))
                             {
-                                // Validate JSON before enqueueing
-                                try
+                                // Validate JSON before enqueueing with lightweight check
+                                var trimmedLine = line.Trim();
+                                if ((trimmedLine.StartsWith("{") && trimmedLine.EndsWith("}")) ||
+                                    (trimmedLine.StartsWith("[") && trimmedLine.EndsWith("]")))
                                 {
-                                    var testParse = Newtonsoft.Json.JsonConvert.DeserializeObject(line);
-                                    if (testParse != null)
+                                    try
                                     {
+                                        Newtonsoft.Json.JsonConvert.DeserializeObject<object>(line);
                                         _failedMessagesQueue.Enqueue(line);
                                         messageCount++;
                                         validLineCount++;
                                     }
-                                }
-                                catch (Newtonsoft.Json.JsonException)
-                                {
-                                    // Skip corrupted lines silently for old files
+                                    catch (Newtonsoft.Json.JsonException)
+                                    {
+                                        // Skip corrupted lines silently for old files
+                                    }
                                 }
                             }
                         }
