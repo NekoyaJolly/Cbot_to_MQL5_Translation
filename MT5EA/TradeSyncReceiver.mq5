@@ -1020,6 +1020,19 @@ string EscapeJsonString(string str)
 }
 
 //+------------------------------------------------------------------+
+//| Prepare JSON string for WebRequest (convert to char array)       |
+//+------------------------------------------------------------------+
+bool PrepareJsonDataForWebRequest(string jsonBody, char &data[])
+{
+    // Use explicit length parameter and UTF8 encoding
+    int len = StringToCharArray(jsonBody, data, 0, WHOLE_ARRAY, CP_UTF8);
+    if(len > 0 && data[len-1] == 0)
+        ArrayResize(data, len - 1); // Remove null terminator if present
+    
+    return len > 0;
+}
+
+//+------------------------------------------------------------------+
 //| Send ticket mapping to Bridge server for persistence             |
 //+------------------------------------------------------------------+
 void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string symbol, string lots)
@@ -1046,10 +1059,11 @@ void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string sy
     );
     
     char data[];
-    // Use explicit length parameter and UTF8 encoding
-    int len = StringToCharArray(jsonBody, data, 0, WHOLE_ARRAY, CP_UTF8);
-    if(len > 0 && data[len-1] == 0)
-        ArrayResize(data, len - 1); // Remove null terminator if present
+    if(!PrepareJsonDataForWebRequest(jsonBody, data))
+    {
+        Print("Failed to prepare JSON data for ticket mapping");
+        return;
+    }
     
     char result[];
     string resultHeaders;

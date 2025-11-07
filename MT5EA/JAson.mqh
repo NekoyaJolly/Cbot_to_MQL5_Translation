@@ -343,7 +343,7 @@ public:
         return m_str_value == "true";
     }
     
-    // Unescape JSON string (handle \", \\, \n, \r, \t)
+    // Unescape JSON string (handle \", \\, \n, \r, \t, \/)
     static string UnescapeString(string value)
     {
         string result = "";
