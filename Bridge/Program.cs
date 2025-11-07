@@ -482,10 +482,11 @@ namespace Bridge
                         
                         // Register persistent queue manager as singleton
                         var databasePath = context.Configuration["Bridge:DatabasePath"] ?? "bridge.db";
+                        var maxRetryCount = context.Configuration.GetValue("Bridge:Retry:MaxRetryCount", 3);
                         services.AddSingleton<PersistentOrderQueueManager>(sp => 
                         {
                             var logger = sp.GetRequiredService<ILogger<PersistentOrderQueueManager>>();
-                            return new PersistentOrderQueueManager(databasePath, logger);
+                            return new PersistentOrderQueueManager(databasePath, logger, maxRetryCount);
                         });
                         
                         services.AddCors(options =>

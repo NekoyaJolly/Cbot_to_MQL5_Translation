@@ -18,6 +18,7 @@ namespace Bridge
         private readonly string _connectionString;
         private readonly ILogger<PersistentOrderQueueManager> _logger;
         private readonly object _lock = new object();
+        private readonly int _maxRetryCount;
 
         // Prometheus metrics
         private static readonly Counter OrdersReceivedCounter = Metrics.CreateCounter(
@@ -52,10 +53,11 @@ namespace Bridge
                 Buckets = Histogram.LinearBuckets(start: 0.1, width: 0.5, count: 10)
             });
 
-        public PersistentOrderQueueManager(string databasePath, ILogger<PersistentOrderQueueManager> logger)
+        public PersistentOrderQueueManager(string databasePath, ILogger<PersistentOrderQueueManager> logger, int maxRetryCount = 3)
         {
             _connectionString = $"Data Source={databasePath}";
             _logger = logger;
+            _maxRetryCount = maxRetryCount;
             InitializeDatabase();
         }
 
@@ -306,7 +308,7 @@ namespace Bridge
                     // If no consumerId provided, generate one
                     if (string.IsNullOrEmpty(consumerId))
                     {
-                        consumerId = $"consumer-{Guid.NewGuid().ToString().Substring(0, 8)}";
+                        consumerId = $"consumer-{Guid.NewGuid():N}"[..18]; // Use 18 chars of hex
                     }
 
                     var now = DateTime.UtcNow.ToString("o");
@@ -345,35 +347,21 @@ namespace Bridge
                     }
 
                     // Mark selected orders as being processed
+                    var updateSql = BuildParameterizedInClause("UPDATE Orders SET Processing = 1, ProcessingBy = @ProcessingBy, ProcessingAt = @ProcessingAt WHERE Id IN (", orderIds.Count, ")");
                     var updateCommand = connection.CreateCommand();
                     updateCommand.Transaction = transaction;
-                    updateCommand.CommandText = @"
-                        UPDATE Orders 
-                        SET Processing = 1, 
-                            ProcessingBy = @ProcessingBy, 
-                            ProcessingAt = @ProcessingAt
-                        WHERE Id IN (" + string.Join(",", orderIds.Select((_, i) => $"@Id{i}")) + @")
-                    ";
+                    updateCommand.CommandText = updateSql;
                     updateCommand.Parameters.AddWithValue("@ProcessingBy", consumerId);
                     updateCommand.Parameters.AddWithValue("@ProcessingAt", now);
-                    for (int i = 0; i < orderIds.Count; i++)
-                    {
-                        updateCommand.Parameters.AddWithValue($"@Id{i}", orderIds[i]);
-                    }
+                    AddIdParameters(updateCommand, orderIds);
                     updateCommand.ExecuteNonQuery();
 
                     // Retrieve the marked orders
+                    var retrieveSql = BuildParameterizedInClause("SELECT * FROM Orders WHERE Id IN (", orderIds.Count, ") ORDER BY Timestamp");
                     var retrieveCommand = connection.CreateCommand();
                     retrieveCommand.Transaction = transaction;
-                    retrieveCommand.CommandText = @"
-                        SELECT * FROM Orders 
-                        WHERE Id IN (" + string.Join(",", orderIds.Select((_, i) => $"@Id{i}")) + @")
-                        ORDER BY Timestamp
-                    ";
-                    for (int i = 0; i < orderIds.Count; i++)
-                    {
-                        retrieveCommand.Parameters.AddWithValue($"@Id{i}", orderIds[i]);
-                    }
+                    retrieveCommand.CommandText = retrieveSql;
+                    AddIdParameters(retrieveCommand, orderIds);
 
                     var orders = new List<TradeOrder>();
                     using (var reader = retrieveCommand.ExecuteReader())
@@ -397,6 +385,26 @@ namespace Bridge
                     _logger.LogError(ex, "Error getting pending orders");
                     throw;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Build a parameterized IN clause SQL string
+        /// </summary>
+        private static string BuildParameterizedInClause(string prefix, int count, string suffix)
+        {
+            var parameters = string.Join(",", Enumerable.Range(0, count).Select(i => $"@Id{i}"));
+            return $"{prefix}{parameters}{suffix}";
+        }
+
+        /// <summary>
+        /// Add ID parameters to a command
+        /// </summary>
+        private static void AddIdParameters(SqliteCommand command, List<string> orderIds)
+        {
+            for (int i = 0; i < orderIds.Count; i++)
+            {
+                command.Parameters.AddWithValue($"@Id{i}", orderIds[i]);
             }
         }
 
@@ -669,7 +677,7 @@ namespace Bridge
                 ";
                 command.Parameters.AddWithValue("@CutoffTime", cutoffTime);
                 command.Parameters.AddWithValue("@NextRetryAt", DateTime.UtcNow.AddSeconds(30).ToString("o"));
-                command.Parameters.AddWithValue("@MaxRetryCount", GetMaxRetryCount());
+                command.Parameters.AddWithValue("@MaxRetryCount", _maxRetryCount);
 
                 var released = command.ExecuteNonQuery();
                 
@@ -702,7 +710,7 @@ namespace Bridge
                     AND Processed = 0
                     AND RetryCount >= @MaxRetryCount
                 ";
-                command.Parameters.AddWithValue("@MaxRetryCount", GetMaxRetryCount());
+                command.Parameters.AddWithValue("@MaxRetryCount", _maxRetryCount);
 
                 var marked = command.ExecuteNonQuery();
                 
@@ -714,12 +722,6 @@ namespace Bridge
                 
                 return marked;
             }
-        }
-
-        private int GetMaxRetryCount()
-        {
-            // This should come from configuration, but we'll use a default for now
-            return 3;
         }
 
         /// <summary>
