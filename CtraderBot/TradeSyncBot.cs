@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,7 +12,7 @@ namespace CtraderBot
     /// cTrader cBot that hooks all trade events and sends them to the Bridge server
     /// for synchronization with MT5
     /// </summary>
-    [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.Internet)]
+    [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.FullAccess)]
     public class TradeSyncBot : Robot
     {
         [Parameter("Bridge Server URL", DefaultValue = "http://localhost:5000")]
@@ -26,6 +27,12 @@ namespace CtraderBot
         [Parameter("Master Label", DefaultValue = "MASTER")]
         public string MasterLabel { get; set; }
 
+        [Parameter("Max Queue Size", DefaultValue = 10000)]
+        public int MaxQueueSize { get; set; }
+
+        [Parameter("Max Persist File Size MB", DefaultValue = 100)]
+        public int MaxPersistFileSizeMB { get; set; }
+
         private HttpClient _httpClient;
         private int _consecutiveFailures = 0;
         private const int MAX_CONSECUTIVE_FAILURES = 10;
@@ -33,7 +40,9 @@ namespace CtraderBot
         private readonly System.Collections.Concurrent.ConcurrentQueue<string> _failedMessagesQueue = 
             new System.Collections.Concurrent.ConcurrentQueue<string>();
         private readonly string _persistDir = "persist/failed";
+        private readonly string _persistFile = "persist/failed/failed_queue.log";
         private System.Threading.Timer _retryTimer;
+        private readonly object _fileLock = new object();
 
         protected override void OnStart()
         {
@@ -119,6 +128,11 @@ namespace CtraderBot
             }
 
             var position = args.Position;
+            
+            // Get the symbol to calculate lots using broker's LotSize
+            var symbol = Symbols.GetSymbol(position.SymbolName);
+            var lotSize = symbol?.LotSize ?? 100000.0; // Fallback to standard lot size if symbol not found
+            
             var orderData = new
             {
                 EventType = "POSITION_OPENED",
@@ -127,7 +141,7 @@ namespace CtraderBot
                 PositionId = position.Id,
                 Symbol = position.SymbolName ?? "",
                 Direction = position.TradeType.ToString(),
-                Volume = (position.VolumeInUnits / 100000.0).ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
+                Volume = (position.VolumeInUnits / lotSize).ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 EntryPrice = position.EntryPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 StopLoss = position.StopLoss?.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 TakeProfit = position.TakeProfit?.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
@@ -198,6 +212,11 @@ namespace CtraderBot
             }
 
             var order = args.PendingOrder;
+            
+            // Get the symbol to calculate lots using broker's LotSize
+            var symbol = Symbols.GetSymbol(order.SymbolName);
+            var lotSize = symbol?.LotSize ?? 100000.0; // Fallback to standard lot size if symbol not found
+            
             var orderData = new
             {
                 EventType = "PENDING_ORDER_CREATED",
@@ -207,7 +226,7 @@ namespace CtraderBot
                 Symbol = order.SymbolName ?? "",
                 OrderType = order.OrderType.ToString(),
                 Direction = order.TradeType.ToString(),
-                Volume = (order.VolumeInUnits / 100000.0).ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
+                Volume = (order.VolumeInUnits / lotSize).ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 TargetPrice = order.TargetPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 StopLoss = order.StopLoss?.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 TakeProfit = order.TakeProfit?.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
@@ -374,21 +393,91 @@ namespace CtraderBot
                 var json = Newtonsoft.Json.JsonConvert.SerializeObject(orderData);
                 _failedMessagesQueue.Enqueue(json);
                 
-                // Also write to file for durability across restarts
-                var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture);
-                var filename = System.IO.Path.Combine(_persistDir, $"failed_{timestamp}.log");
+                // Check queue size limit
+                if (_failedMessagesQueue.Count > MaxQueueSize)
+                {
+                    Print("Warning: Queue size exceeded {0}, dropping oldest message", MaxQueueSize);
+                    _failedMessagesQueue.TryDequeue(out _);
+                }
                 
-                // Append to file (one JSON per line)
-                System.IO.File.AppendAllText(filename, json + Environment.NewLine);
+                // Write to single append file for durability across restarts
+                lock (_fileLock)
+                {
+                    // Check file size before writing
+                    var maxFileSize = MaxPersistFileSizeMB * 1024 * 1024;
+                    if (System.IO.File.Exists(_persistFile))
+                    {
+                        var fileInfo = new System.IO.FileInfo(_persistFile);
+                        if (fileInfo.Length >= maxFileSize)
+                        {
+                            // Rotate file
+                            RotatePersistFile();
+                        }
+                    }
+                    
+                    // Append to file (one JSON per line)
+                    System.IO.File.AppendAllText(_persistFile, json + Environment.NewLine);
+                }
                 
                 var eventType = orderData.GetType().GetProperty("EventType")?.GetValue(orderData);
                 var sourceId = orderData.GetType().GetProperty("SourceId")?.GetValue(orderData);
-                Print("Message persisted: EventType={0}, SourceId={1}, File={2}", 
-                      eventType, sourceId, filename);
+                Print("Message persisted: EventType={0}, SourceId={1}, QueueSize={2}", 
+                      eventType, sourceId, _failedMessagesQueue.Count);
             }
             catch (Exception ex)
             {
                 Print("Error persisting failed message: {0}", ex.Message);
+            }
+        }
+
+        private void RotatePersistFile()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_persistFile))
+                    return;
+                
+                // Create backup with timestamp
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture);
+                var backupFile = System.IO.Path.Combine(_persistDir, $"failed_queue_{timestamp}.log.bak");
+                
+                System.IO.File.Move(_persistFile, backupFile);
+                Print("Persist file rotated to: {0}", backupFile);
+                
+                // Clean up old backup files (keep only last 10)
+                CleanupOldBackups();
+            }
+            catch (Exception ex)
+            {
+                Print("Error rotating persist file: {0}", ex.Message);
+            }
+        }
+
+        private void CleanupOldBackups()
+        {
+            try
+            {
+                var backupFiles = System.IO.Directory.GetFiles(_persistDir, "failed_queue_*.log.bak")
+                    .OrderByDescending(f => f)
+                    .ToArray();
+                
+                // Keep only the last 10 backup files
+                for (int i = 10; i < backupFiles.Length; i++)
+                {
+                    try
+                    {
+                        System.IO.File.Delete(backupFiles[i]);
+                        Print("Deleted old backup: {0}", backupFiles[i]);
+                    }
+                    catch (Exception ex)
+                    {
+                        Print("Error deleting backup {0}: {1}", backupFiles[i], ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Print("Error cleaning up old backups: {0}", ex.Message);
             }
         }
 
@@ -399,10 +488,38 @@ namespace CtraderBot
                 if (!System.IO.Directory.Exists(_persistDir))
                     return;
 
-                var files = System.IO.Directory.GetFiles(_persistDir, "failed_*.log");
                 var messageCount = 0;
                 
-                foreach (var file in files)
+                // Load from main persist file
+                if (System.IO.File.Exists(_persistFile))
+                {
+                    lock (_fileLock)
+                    {
+                        try
+                        {
+                            var lines = System.IO.File.ReadAllLines(_persistFile);
+                            foreach (var line in lines)
+                            {
+                                if (!string.IsNullOrWhiteSpace(line))
+                                {
+                                    _failedMessagesQueue.Enqueue(line);
+                                    messageCount++;
+                                }
+                            }
+                            
+                            // Clear the file after loading
+                            System.IO.File.WriteAllText(_persistFile, string.Empty);
+                        }
+                        catch (Exception ex)
+                        {
+                            Print("Error loading failed messages from {0}: {1}", _persistFile, ex.Message);
+                        }
+                    }
+                }
+                
+                // Also load from any old-style failed_*.log files for backward compatibility
+                var oldFiles = System.IO.Directory.GetFiles(_persistDir, "failed_*.log");
+                foreach (var file in oldFiles)
                 {
                     try
                     {
@@ -416,7 +533,7 @@ namespace CtraderBot
                             }
                         }
                         
-                        // Delete the file after loading
+                        // Delete the old file after loading
                         System.IO.File.Delete(file);
                     }
                     catch (Exception ex)
@@ -444,27 +561,37 @@ namespace CtraderBot
             var retryCount = 0;
             var maxRetries = 10; // Process up to 10 messages per retry cycle
             
-            while (retryCount < maxRetries && _failedMessagesQueue.TryDequeue(out var json))
+            while (retryCount < maxRetries && _failedMessagesQueue.TryPeek(out var json))
             {
                 try
                 {
                     var orderData = Newtonsoft.Json.JsonConvert.DeserializeObject(json);
-                    var success = await TrySendHttp(orderData, retryCount + 1);
                     
-                    if (!success)
+                    // Calculate exponential backoff delay
+                    var backoffDelay = CalculateBackoffDelay(retryCount);
+                    if (backoffDelay > TimeSpan.Zero)
                     {
-                        // Re-queue for next retry
-                        _failedMessagesQueue.Enqueue(json);
-                        break; // Stop processing if we hit a failure
+                        await Task.Delay(backoffDelay);
                     }
                     
-                    retryCount++;
+                    var success = await TrySendHttp(orderData, retryCount + 1);
+                    
+                    if (success)
+                    {
+                        // Only dequeue on success
+                        _failedMessagesQueue.TryDequeue(out _);
+                        retryCount++;
+                    }
+                    else
+                    {
+                        // Stop processing if we hit a failure - will retry in next cycle
+                        break;
+                    }
                 }
                 catch (Exception ex)
                 {
                     Print("Error retrying failed message: {0}", ex.Message);
-                    // Re-queue the message
-                    _failedMessagesQueue.Enqueue(json);
+                    // Stop processing on error
                     break;
                 }
             }
@@ -474,6 +601,16 @@ namespace CtraderBot
                 Print("Retry cycle completed: {0} messages sent, {1} remaining in queue", 
                       retryCount, _failedMessagesQueue.Count);
             }
+        }
+
+        private TimeSpan CalculateBackoffDelay(int retryCount)
+        {
+            // Exponential backoff: 0s, 1s, 2s, 4s, 8s, 16s, 32s, 60s (capped at 60s)
+            if (retryCount == 0)
+                return TimeSpan.Zero;
+            
+            var delaySeconds = Math.Min(Math.Pow(2, retryCount - 1), 60);
+            return TimeSpan.FromSeconds(delaySeconds);
         }
     }
 }
