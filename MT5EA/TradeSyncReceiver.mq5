@@ -42,6 +42,10 @@ string g_ticketMappingFile = "TradeSyncReceiver_TicketMap.dat";
 int requestsThisMinute = 0;
 datetime lastMinuteReset;
 
+// Sanity check limits for file persistence
+#define MAX_TICKET_MAPPINGS 10000  // Maximum number of mappings to load from file
+#define MAX_SOURCE_ID_LENGTH 1000  // Maximum length of sourceId string
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -937,7 +941,7 @@ void LoadTicketMappingsFromFile()
     {
         int count = FileReadInteger(fileHandle, INT_VALUE);
         
-        if(count > 0 && count < 10000) // Sanity check
+        if(count > 0 && count < MAX_TICKET_MAPPINGS) // Sanity check
         {
             ArrayResize(g_sourceIds, count);
             ArrayResize(g_tickets, count);
@@ -946,7 +950,7 @@ void LoadTicketMappingsFromFile()
             {
                 // Read sourceId
                 int sourceIdLen = FileReadInteger(fileHandle, INT_VALUE);
-                if(sourceIdLen > 0 && sourceIdLen < 1000) // Sanity check
+                if(sourceIdLen > 0 && sourceIdLen < MAX_SOURCE_ID_LENGTH) // Sanity check
                 {
                     g_sourceIds[i] = FileReadString(fileHandle, sourceIdLen);
                 }
@@ -967,6 +971,35 @@ void LoadTicketMappingsFromFile()
 }
 
 //+------------------------------------------------------------------+
+//| Escape string for JSON                                            |
+//+------------------------------------------------------------------+
+string EscapeJsonString(string str)
+{
+    string result = "";
+    int len = StringLen(str);
+    
+    for(int i = 0; i < len; i++)
+    {
+        ushort ch = StringGetCharacter(str, i);
+        
+        if(ch == '"')
+            result += "\\\"";
+        else if(ch == '\\')
+            result += "\\\\";
+        else if(ch == '\n')
+            result += "\\n";
+        else if(ch == '\r')
+            result += "\\r";
+        else if(ch == '\t')
+            result += "\\t";
+        else
+            result += CharToString(ch);
+    }
+    
+    return result;
+}
+
+//+------------------------------------------------------------------+
 //| Send ticket mapping to Bridge server for persistence             |
 //+------------------------------------------------------------------+
 void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string symbol, string lots)
@@ -980,10 +1013,15 @@ void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string sy
         headers += "X-API-KEY: " + BridgeApiKey + "\r\n";
     }
     
-    // Create JSON body
+    // Escape strings for JSON
+    string escapedSourceTicket = EscapeJsonString(sourceTicket);
+    string escapedSymbol = EscapeJsonString(symbol);
+    string escapedLots = EscapeJsonString(lots);
+    
+    // Create JSON body with escaped strings
     string jsonBody = StringFormat(
         "{\"SourceTicket\":\"%s\",\"SlaveTicket\":\"%I64u\",\"Symbol\":\"%s\",\"Lots\":\"%s\"}",
-        sourceTicket, slaveTicket, symbol, lots
+        escapedSourceTicket, slaveTicket, escapedSymbol, escapedLots
     );
     
     char data[];
