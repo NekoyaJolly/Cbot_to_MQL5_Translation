@@ -918,7 +918,8 @@ void SaveTicketMappingsToFile()
             FileWriteInteger(fileHandle, sourceIdLen, INT_VALUE);
             FileWriteString(fileHandle, g_sourceIds[i], sourceIdLen);
             
-            // Write ticket
+            // Write ticket (ulong as long - MQL5 doesn't have FileWriteUlong)
+            // This is safe as long as ticket values don't exceed LONG_MAX
             FileWriteLong(fileHandle, (long)g_tickets[i]);
         }
         
@@ -964,8 +965,10 @@ void LoadTicketMappingsFromFile()
                     FileSeek(fileHandle, sourceIdLen, SEEK_CUR);
                 }
                 
-                // Read ticket
-                ulong ticket = (ulong)FileReadLong(fileHandle);
+                // Read ticket (stored as long, convert to ulong)
+                // This is safe as MT5 ticket numbers are typically positive
+                long ticketLong = FileReadLong(fileHandle);
+                ulong ticket = (ticketLong > 0) ? (ulong)ticketLong : 0;
                 
                 // Only add to arrays if sourceId is valid
                 if(StringLen(sourceId) > 0 && ticket > 0)
@@ -1052,10 +1055,13 @@ void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string sy
     string escapedLots = EscapeJsonString(lots);
     
     // Create JSON body with escaped strings
-    // Use IntegerToString for better portability across MQL5 versions
+    // Format ulong ticket as string (tickets are unsigned 64-bit)
+    string ticketStr = "";
+    StringConcatenate(ticketStr, slaveTicket); // Proper ulong to string conversion
+    
     string jsonBody = StringFormat(
         "{\"SourceTicket\":\"%s\",\"SlaveTicket\":\"%s\",\"Symbol\":\"%s\",\"Lots\":\"%s\"}",
-        escapedSourceTicket, IntegerToString(slaveTicket), escapedSymbol, escapedLots
+        escapedSourceTicket, ticketStr, escapedSymbol, escapedLots
     );
     
     char data[];
