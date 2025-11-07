@@ -37,6 +37,10 @@ string g_failedRequestsFile = "TradeSyncReceiver_Failed.log";
 // Ticket mapping persistence file
 string g_ticketMappingFile = "TradeSyncReceiver_TicketMap.dat";
 
+// File format version for ticket mapping
+#define TICKET_MAP_FILE_VERSION 1
+#define TICKET_MAP_MAGIC_NUMBER 0x544D4150  // "TMAP" in hex
+
 // Rate limiting
 #define MAX_REQUESTS_PER_MINUTE 60
 int requestsThisMinute = 0;
@@ -169,7 +173,8 @@ void PollBridgeForOrders()
         return;
     }
     
-    if(res == 200)
+    // Accept all 2xx status codes as success
+    if(res >= 200 && res < 300)
     {
         consecutiveFailures = 0; // Reset failure counter on success
         lastSuccessTime = currentTime;
@@ -188,7 +193,9 @@ void PollBridgeForOrders()
     else
     {
         consecutiveFailures++;
-        Print("HTTP Error: ", res, ". Failures: ", consecutiveFailures);
+        string errorBody = CharArrayToString(result);
+        Print("HTTP Error: ", res, ". Failures: ", consecutiveFailures, 
+              ". Response: ", StringSubstr(errorBody, 0, MathMin(200, StringLen(errorBody))));
     }
 }
 
@@ -777,9 +784,16 @@ void MarkOrderAsProcessed(string orderId)
     
     int res = WebRequest("POST", url, headers, timeout, data, result, resultHeaders);
     
-    if(res != 200)
+    // Accept all 2xx status codes as success
+    if(res >= 200 && res < 300)
     {
-        Print("Failed to mark order as processed: ", orderId, " HTTP Status: ", res);
+        Print("Order marked as processed: ", orderId, " HTTP Status: ", res);
+    }
+    else
+    {
+        string errorBody = CharArrayToString(result);
+        Print("Failed to mark order as processed: ", orderId, " HTTP Status: ", res,
+              ". Response: ", StringSubstr(errorBody, 0, MathMin(200, StringLen(errorBody))));
     }
 }
 
@@ -883,16 +897,57 @@ void LogFailedRequest(string orderId, string eventType, string reason, string js
     int fileHandle = FileOpen(g_failedRequestsFile, FILE_WRITE|FILE_READ|FILE_SHARE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);
     if(fileHandle != INVALID_HANDLE)
     {
-        FileSeek(fileHandle, 0, SEEK_END);
+        // Check file size before writing (prevent unlimited growth)
+        ulong fileSize = FileSize(fileHandle);
+        const ulong MAX_LOG_SIZE = 10 * 1024 * 1024; // 10 MB limit
+        
+        if(fileSize > MAX_LOG_SIZE)
+        {
+            Print("Warning: Failed requests log file exceeds ", MAX_LOG_SIZE, " bytes. Rotating.");
+            FileClose(fileHandle);
+            
+            // Rotate the log file
+            string backupFile = g_failedRequestsFile + "." + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS);
+            StringReplace(backupFile, ":", "");
+            StringReplace(backupFile, " ", "_");
+            
+            // Delete old file and rename current
+            if(FileIsExist(backupFile, FILE_COMMON))
+                FileDelete(backupFile, FILE_COMMON);
+            
+            // Reopen for writing (this will create a new file)
+            fileHandle = FileOpen(g_failedRequestsFile, FILE_WRITE|FILE_READ|FILE_SHARE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);
+        }
+        else
+        {
+            FileSeek(fileHandle, 0, SEEK_END);
+        }
+        
+        // Sanitize input to prevent log injection
+        string sanitizedOrderId = orderId;
+        string sanitizedEventType = eventType;
+        string sanitizedReason = reason;
+        string sanitizedData = jsonData;
+        
+        // Remove newlines and carriage returns to prevent log forging
+        StringReplace(sanitizedOrderId, "\n", " ");
+        StringReplace(sanitizedOrderId, "\r", " ");
+        StringReplace(sanitizedEventType, "\n", " ");
+        StringReplace(sanitizedEventType, "\r", " ");
+        StringReplace(sanitizedReason, "\n", " ");
+        StringReplace(sanitizedReason, "\r", " ");
+        StringReplace(sanitizedData, "\n", " ");
+        StringReplace(sanitizedData, "\r", " ");
+        
         string logEntry = TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + 
-                         " | OrderId: " + orderId + 
-                         " | EventType: " + eventType + 
-                         " | Reason: " + reason + 
-                         " | Data: " + StringSubstr(jsonData, 0, MathMin(200, StringLen(jsonData))) + 
+                         " | OrderId: " + sanitizedOrderId + 
+                         " | EventType: " + sanitizedEventType + 
+                         " | Reason: " + sanitizedReason + 
+                         " | Data: " + StringSubstr(sanitizedData, 0, MathMin(200, StringLen(sanitizedData))) + 
                          "\r\n";
         FileWriteString(fileHandle, logEntry);
         FileClose(fileHandle);
-        Print("Failed request logged to file: ", orderId);
+        Print("Failed request logged to file: ", sanitizedOrderId);
     }
     else
     {
@@ -908,6 +963,10 @@ void SaveTicketMappingsToFile()
     int fileHandle = FileOpen(g_ticketMappingFile, FILE_WRITE|FILE_BIN|FILE_COMMON);
     if(fileHandle != INVALID_HANDLE)
     {
+        // Write file header with magic number and version
+        FileWriteInteger(fileHandle, TICKET_MAP_MAGIC_NUMBER, INT_VALUE);
+        FileWriteInteger(fileHandle, TICKET_MAP_FILE_VERSION, INT_VALUE);
+        
         int count = ArraySize(g_sourceIds);
         FileWriteInteger(fileHandle, count, INT_VALUE);
         
@@ -945,9 +1004,43 @@ void LoadTicketMappingsFromFile()
     int fileHandle = FileOpen(g_ticketMappingFile, FILE_READ|FILE_BIN|FILE_COMMON);
     if(fileHandle != INVALID_HANDLE)
     {
+        // Check file size to prevent reading corrupted files
+        ulong fileSize = FileSize(fileHandle);
+        if(fileSize < 12) // Minimum: magic(4) + version(4) + count(4)
+        {
+            Print("Warning: Ticket mapping file too small (", fileSize, " bytes), possibly corrupted. Skipping.");
+            FileClose(fileHandle);
+            return;
+        }
+        
+        // Read and validate file header
+        int magicNumber = FileReadInteger(fileHandle, INT_VALUE);
+        if(magicNumber != TICKET_MAP_MAGIC_NUMBER)
+        {
+            Print("Warning: Invalid ticket mapping file format (magic=", magicNumber, "). Skipping corrupted file.");
+            FileClose(fileHandle);
+            return;
+        }
+        
+        int fileVersion = FileReadInteger(fileHandle, INT_VALUE);
+        if(fileVersion != TICKET_MAP_FILE_VERSION)
+        {
+            Print("Warning: Unsupported ticket mapping file version (", fileVersion, "). Expected version ", TICKET_MAP_FILE_VERSION, ". Skipping.");
+            FileClose(fileHandle);
+            return;
+        }
+        
         int count = FileReadInteger(fileHandle, INT_VALUE);
         
-        if(count > 0 && count < MAX_TICKET_MAPPINGS) // Sanity check
+        // Sanity check: validate count is reasonable
+        if(count < 0 || count > MAX_TICKET_MAPPINGS)
+        {
+            Print("Warning: Invalid ticket mapping count (", count, "). File may be corrupted. Skipping.");
+            FileClose(fileHandle);
+            return;
+        }
+        
+        if(count > 0)
         {
             ArrayResize(g_sourceIds, 0);
             ArrayResize(g_tickets, 0);
@@ -955,23 +1048,45 @@ void LoadTicketMappingsFromFile()
             int validCount = 0;
             for(int i = 0; i < count; i++)
             {
+                // Check if we can read more data
+                if(FileIsEnding(fileHandle))
+                {
+                    Print("Warning: Unexpected end of file at entry ", i, ". File may be truncated.");
+                    break;
+                }
+                
                 // Read sourceId length
                 int sourceIdLen = FileReadInteger(fileHandle, INT_VALUE);
                 
+                // Validate sourceId length
+                if(sourceIdLen < 0 || sourceIdLen > MAX_SOURCE_ID_LENGTH)
+                {
+                    Print("Warning: Invalid sourceId length (", sourceIdLen, ") at entry ", i, ". Skipping remaining entries.");
+                    break;
+                }
+                
                 // Read sourceId string
                 string sourceId = "";
-                if(sourceIdLen > 0 && sourceIdLen < MAX_SOURCE_ID_LENGTH)
+                if(sourceIdLen > 0)
                 {
                     sourceId = FileReadString(fileHandle, sourceIdLen);
+                    
+                    // Validate we actually read the expected length
+                    if(StringLen(sourceId) != sourceIdLen)
+                    {
+                        Print("Warning: Failed to read sourceId at entry ", i, ". Expected ", sourceIdLen, " chars, got ", StringLen(sourceId), ". Skipping remaining.");
+                        break;
+                    }
                 }
-                else if(sourceIdLen > 0)
+                
+                // Check if we can read ticket
+                if(FileIsEnding(fileHandle))
                 {
-                    // Skip invalid sourceId
-                    FileSeek(fileHandle, sourceIdLen, SEEK_CUR);
+                    Print("Warning: Missing ticket value at entry ", i, ". File may be truncated.");
+                    break;
                 }
                 
                 // Read ticket (stored as long, convert to ulong)
-                // Validate the long value is positive before converting to ulong
                 long ticketLong = FileReadLong(fileHandle);
                 ulong ticket = 0;
                 if(ticketLong > 0 && ticketLong <= 9223372036854775807)
@@ -980,7 +1095,8 @@ void LoadTicketMappingsFromFile()
                 }
                 else if(ticketLong < 0)
                 {
-                    Print("Warning: Invalid negative ticket value ", ticketLong, " skipped");
+                    Print("Warning: Invalid negative ticket value ", ticketLong, " at entry ", i, ". Skipping.");
+                    continue;
                 }
                 
                 // Only add to arrays if sourceId is valid and ticket is valid
@@ -996,6 +1112,10 @@ void LoadTicketMappingsFromFile()
             }
             
             Print("Ticket mappings loaded from file: ", validCount, " valid entries out of ", count);
+        }
+        else
+        {
+            Print("Ticket mapping file is empty");
         }
         
         FileClose(fileHandle);
@@ -1040,12 +1160,33 @@ string EscapeJsonString(string str)
 //+------------------------------------------------------------------+
 bool PrepareJsonDataForWebRequest(string jsonBody, char &data[])
 {
-    // Use explicit length parameter and UTF8 encoding
-    int len = StringToCharArray(jsonBody, data, 0, WHOLE_ARRAY, CP_UTF8);
-    if(len > 0 && data[len-1] == 0)
-        ArrayResize(data, len - 1); // Remove null terminator if present
+    // Validate input
+    if(StringLen(jsonBody) == 0)
+    {
+        Print("Error: Empty JSON body");
+        ArrayResize(data, 0);
+        return false;
+    }
     
-    return len > 0;
+    // Use explicit length parameter and UTF8 encoding
+    // StringToCharArray returns the number of characters copied INCLUDING null terminator
+    int len = StringToCharArray(jsonBody, data, 0, WHOLE_ARRAY, CP_UTF8);
+    
+    // Validate conversion succeeded
+    if(len <= 0)
+    {
+        Print("Error: Failed to convert JSON string to char array");
+        ArrayResize(data, 0);
+        return false;
+    }
+    
+    // Remove null terminator if present (HTTP body should not include it)
+    if(len > 0 && data[len-1] == 0)
+    {
+        ArrayResize(data, len - 1);
+    }
+    
+    return true;
 }
 
 //+------------------------------------------------------------------+
@@ -1091,13 +1232,16 @@ void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string sy
     
     int res = WebRequest("POST", url, headers, timeout, data, result, resultHeaders);
     
-    if(res == 200)
+    // Accept all 2xx status codes as success
+    if(res >= 200 && res < 300)
     {
-        Print("Ticket mapping sent to Bridge: ", sourceTicket, " -> ", slaveTicket);
+        Print("Ticket mapping sent to Bridge: ", sourceTicket, " -> ", slaveTicket, " HTTP Status: ", res);
     }
     else
     {
-        Print("Failed to send ticket mapping to Bridge: HTTP Status ", res);
+        string errorBody = CharArrayToString(result);
+        Print("Failed to send ticket mapping to Bridge: HTTP Status ", res,
+              ". Response: ", StringSubstr(errorBody, 0, MathMin(200, StringLen(errorBody))));
     }
 }
 //+------------------------------------------------------------------+

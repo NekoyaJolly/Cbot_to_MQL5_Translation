@@ -232,8 +232,8 @@ namespace Bridge
                     var existingId = checkCommand.ExecuteScalar() as string;
                     if (existingId != null)
                     {
-                        _logger.LogInformation("Order with SourceId {SourceId} and EventType {EventType} already exists, skipping duplicate", 
-                            SanitizeForLog(order.SourceId), SanitizeForLog(order.EventType));
+                        _logger.LogWarning("Duplicate order detected - SourceId: {SourceId}, EventType: {EventType}, ExistingId: {ExistingId}. Idempotency check prevented duplicate registration.", 
+                            SanitizeForLog(order.SourceId), SanitizeForLog(order.EventType), SanitizeForLog(existingId));
                         DuplicateOrdersCounter.Inc();
                         return existingId;
                     }
