@@ -943,23 +943,43 @@ void LoadTicketMappingsFromFile()
         
         if(count > 0 && count < MAX_TICKET_MAPPINGS) // Sanity check
         {
-            ArrayResize(g_sourceIds, count);
-            ArrayResize(g_tickets, count);
+            ArrayResize(g_sourceIds, 0);
+            ArrayResize(g_tickets, 0);
             
+            int validCount = 0;
             for(int i = 0; i < count; i++)
             {
-                // Read sourceId
+                // Read sourceId length
                 int sourceIdLen = FileReadInteger(fileHandle, INT_VALUE);
-                if(sourceIdLen > 0 && sourceIdLen < MAX_SOURCE_ID_LENGTH) // Sanity check
+                
+                // Read sourceId string
+                string sourceId = "";
+                if(sourceIdLen > 0 && sourceIdLen < MAX_SOURCE_ID_LENGTH)
                 {
-                    g_sourceIds[i] = FileReadString(fileHandle, sourceIdLen);
+                    sourceId = FileReadString(fileHandle, sourceIdLen);
+                }
+                else if(sourceIdLen > 0)
+                {
+                    // Skip invalid sourceId
+                    FileSeek(fileHandle, sourceIdLen, SEEK_CUR);
                 }
                 
                 // Read ticket
-                g_tickets[i] = (ulong)FileReadLong(fileHandle);
+                ulong ticket = (ulong)FileReadLong(fileHandle);
+                
+                // Only add to arrays if sourceId is valid
+                if(StringLen(sourceId) > 0 && ticket > 0)
+                {
+                    int size = ArraySize(g_sourceIds);
+                    ArrayResize(g_sourceIds, size + 1);
+                    ArrayResize(g_tickets, size + 1);
+                    g_sourceIds[size] = sourceId;
+                    g_tickets[size] = ticket;
+                    validCount++;
+                }
             }
             
-            Print("Ticket mappings loaded from file: ", count, " entries");
+            Print("Ticket mappings loaded from file: ", validCount, " valid entries out of ", count);
         }
         
         FileClose(fileHandle);
