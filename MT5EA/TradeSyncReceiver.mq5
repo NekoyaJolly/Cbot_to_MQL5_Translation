@@ -911,8 +911,6 @@ void LogFailedRequest(string orderId, string eventType, string reason, string js
             StringReplace(backupFile, ":", "");
             StringReplace(backupFile, " ", "_");
             
-            FileClose(fileHandle);
-            
             // Move current file to backup
             if(FileIsExist(backupFile, FILE_COMMON))
                 FileDelete(backupFile, FILE_COMMON);
@@ -931,7 +929,11 @@ void LogFailedRequest(string orderId, string eventType, string reason, string js
             
             // Reopen for writing (this will create a new file)
             fileHandle = FileOpen(g_failedRequestsFile, FILE_WRITE|FILE_READ|FILE_SHARE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);
-        
+        }
+        else
+        {
+            FileSeek(fileHandle, 0, SEEK_END);
+        }
         // Sanitize input to prevent log injection
         string sanitizedOrderId = orderId;
         string sanitizedEventType = eventType;

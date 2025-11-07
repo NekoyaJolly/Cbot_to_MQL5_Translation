@@ -421,7 +421,7 @@ public:
                     // Extract 4 hex digits
                     for(int j = 0; j < 4; j++)
                     {
-                        if(i + 2 + j >= len)
+                        if(i + 2 + j > len - 1)
                         {
                             validHex = false;
                             break;
