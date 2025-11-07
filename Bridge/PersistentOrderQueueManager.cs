@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
+using Prometheus;
 
 namespace Bridge
 {
@@ -17,6 +18,39 @@ namespace Bridge
         private readonly string _connectionString;
         private readonly ILogger<PersistentOrderQueueManager> _logger;
         private readonly object _lock = new object();
+
+        // Prometheus metrics
+        private static readonly Counter OrdersReceivedCounter = Metrics.CreateCounter(
+            "bridge_orders_received_total", 
+            "Total number of orders received");
+        
+        private static readonly Counter OrdersProcessedCounter = Metrics.CreateCounter(
+            "bridge_orders_processed_total", 
+            "Total number of orders marked as processed");
+        
+        private static readonly Gauge PendingOrdersGauge = Metrics.CreateGauge(
+            "bridge_orders_pending", 
+            "Current number of pending orders");
+        
+        private static readonly Counter OrdersFailedCounter = Metrics.CreateCounter(
+            "bridge_orders_failed_total", 
+            "Total number of orders that failed after max retries");
+        
+        private static readonly Gauge RetryQueueSizeGauge = Metrics.CreateGauge(
+            "bridge_retry_queue_size", 
+            "Current number of orders waiting for retry");
+        
+        private static readonly Counter DuplicateOrdersCounter = Metrics.CreateCounter(
+            "bridge_duplicate_orders_total", 
+            "Total number of duplicate orders rejected");
+        
+        private static readonly Histogram OrderProcessingDuration = Metrics.CreateHistogram(
+            "bridge_order_processing_duration_seconds",
+            "Duration of order processing",
+            new HistogramConfiguration
+            {
+                Buckets = Histogram.LinearBuckets(start: 0.1, width: 0.5, count: 10)
+            });
 
         public PersistentOrderQueueManager(string databasePath, ILogger<PersistentOrderQueueManager> logger)
         {
@@ -78,6 +112,9 @@ namespace Bridge
                     RetryCount INTEGER NOT NULL DEFAULT 0,
                     LastRetryAt TEXT,
                     NextRetryAt TEXT,
+                    Processing INTEGER NOT NULL DEFAULT 0,
+                    ProcessingBy TEXT,
+                    ProcessingAt TEXT,
                     UNIQUE(SourceId, EventType)
                 );
                 
@@ -85,6 +122,7 @@ namespace Bridge
                 CREATE INDEX IF NOT EXISTS idx_orders_sourceid ON Orders(SourceId);
                 CREATE INDEX IF NOT EXISTS idx_orders_timestamp ON Orders(Timestamp);
                 CREATE INDEX IF NOT EXISTS idx_orders_retry ON Orders(NextRetryAt) WHERE Processed = 0;
+                CREATE INDEX IF NOT EXISTS idx_orders_processing ON Orders(Processing) WHERE Processed = 0;
                 
                 CREATE TABLE IF NOT EXISTS TicketMap (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,7 +139,71 @@ namespace Bridge
             ";
             command.ExecuteNonQuery();
 
+            // Perform migration for existing databases
+            MigrateDatabase(connection);
+
             _logger.LogInformation("Database initialized at {DatabasePath}", _connectionString);
+        }
+
+        private void MigrateDatabase(SqliteConnection connection)
+        {
+            try
+            {
+                // Check if Processing column exists
+                var command = connection.CreateCommand();
+                command.CommandText = "PRAGMA table_info(Orders)";
+                using var reader = command.ExecuteReader();
+                
+                bool hasProcessing = false;
+                bool hasProcessingBy = false;
+                bool hasProcessingAt = false;
+                
+                while (reader.Read())
+                {
+                    var columnName = reader.GetString(1);
+                    if (columnName == "Processing") hasProcessing = true;
+                    if (columnName == "ProcessingBy") hasProcessingBy = true;
+                    if (columnName == "ProcessingAt") hasProcessingAt = true;
+                }
+                reader.Close();
+
+                // Add missing columns
+                if (!hasProcessing)
+                {
+                    _logger.LogInformation("Adding Processing column to Orders table");
+                    command = connection.CreateCommand();
+                    command.CommandText = "ALTER TABLE Orders ADD COLUMN Processing INTEGER NOT NULL DEFAULT 0";
+                    command.ExecuteNonQuery();
+                }
+
+                if (!hasProcessingBy)
+                {
+                    _logger.LogInformation("Adding ProcessingBy column to Orders table");
+                    command = connection.CreateCommand();
+                    command.CommandText = "ALTER TABLE Orders ADD COLUMN ProcessingBy TEXT";
+                    command.ExecuteNonQuery();
+                }
+
+                if (!hasProcessingAt)
+                {
+                    _logger.LogInformation("Adding ProcessingAt column to Orders table");
+                    command = connection.CreateCommand();
+                    command.CommandText = "ALTER TABLE Orders ADD COLUMN ProcessingAt TEXT";
+                    command.ExecuteNonQuery();
+                }
+
+                // Create index if needed
+                if (!hasProcessing)
+                {
+                    command = connection.CreateCommand();
+                    command.CommandText = "CREATE INDEX IF NOT EXISTS idx_orders_processing ON Orders(Processing) WHERE Processed = 0";
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during database migration - may be a new database");
+            }
         }
 
         public string AddOrder(TradeOrder order)
@@ -130,6 +232,7 @@ namespace Bridge
                     {
                         _logger.LogInformation("Order with SourceId {SourceId} and EventType {EventType} already exists, skipping duplicate", 
                             SanitizeForLog(order.SourceId), SanitizeForLog(order.EventType));
+                        DuplicateOrdersCounter.Inc();
                         return existingId;
                     }
                 }
@@ -140,12 +243,14 @@ namespace Bridge
                         Id, SourceId, EventType, Timestamp, PositionId, OrderId, Symbol, 
                         Direction, OrderType, Volume, EntryPrice, TargetPrice, 
                         StopLoss, TakeProfit, ClosingPrice, NetProfit, Comment, 
-                        Processed, ProcessedAt, CreatedAt, RetryCount, LastRetryAt, NextRetryAt
+                        Processed, ProcessedAt, CreatedAt, RetryCount, LastRetryAt, NextRetryAt,
+                        Processing, ProcessingBy, ProcessingAt
                     ) VALUES (
                         @Id, @SourceId, @EventType, @Timestamp, @PositionId, @OrderId, @Symbol,
                         @Direction, @OrderType, @Volume, @EntryPrice, @TargetPrice,
                         @StopLoss, @TakeProfit, @ClosingPrice, @NetProfit, @Comment,
-                        0, NULL, @CreatedAt, @RetryCount, @LastRetryAt, @NextRetryAt
+                        0, NULL, @CreatedAt, @RetryCount, @LastRetryAt, @NextRetryAt,
+                        0, NULL, NULL
                     )
                 ";
 
@@ -176,34 +281,122 @@ namespace Bridge
                 _logger.LogInformation("Order added: Id={Id}, SourceId={SourceId}, EventType={EventType}", 
                     SanitizeForLog(order.Id), SanitizeForLog(order.SourceId), SanitizeForLog(order.EventType));
 
+                // Increment metrics
+                OrdersReceivedCounter.Inc();
+                UpdatePendingOrdersGauge();
+
                 return order.Id;
             }
         }
 
-        public List<TradeOrder> GetPendingOrders(int maxCount = 10)
+        /// <summary>
+        /// Get pending orders with atomic locking to prevent duplicate processing
+        /// Uses consumerId to mark which consumer is processing the orders
+        /// </summary>
+        public List<TradeOrder> GetPendingOrders(int maxCount = 10, string consumerId = null)
         {
             lock (_lock)
             {
                 using var connection = new SqliteConnection(_connectionString);
                 connection.Open();
 
-                var command = connection.CreateCommand();
-                command.CommandText = @"
-                    SELECT * FROM Orders 
-                    WHERE Processed = 0 
-                    ORDER BY Timestamp 
-                    LIMIT @MaxCount
-                ";
-                command.Parameters.AddWithValue("@MaxCount", maxCount);
-
-                var orders = new List<TradeOrder>();
-                using var reader = command.ExecuteReader();
-                while (reader.Read())
+                using var transaction = connection.BeginTransaction();
+                try
                 {
-                    orders.Add(ReadOrder(reader));
-                }
+                    // If no consumerId provided, generate one
+                    if (string.IsNullOrEmpty(consumerId))
+                    {
+                        consumerId = $"consumer-{Guid.NewGuid().ToString().Substring(0, 8)}";
+                    }
 
-                return orders;
+                    var now = DateTime.UtcNow.ToString("o");
+
+                    // First, select orders that are eligible for processing
+                    // Eligible orders are:
+                    // 1. Not processed (Processed = 0)
+                    // 2. Not currently being processed (Processing = 0)
+                    // 3. Either no retry scheduled, or retry time has passed
+                    var selectCommand = connection.CreateCommand();
+                    selectCommand.Transaction = transaction;
+                    selectCommand.CommandText = @"
+                        SELECT Id FROM Orders 
+                        WHERE Processed = 0 
+                        AND Processing = 0
+                        AND (NextRetryAt IS NULL OR NextRetryAt <= @Now)
+                        ORDER BY Timestamp 
+                        LIMIT @MaxCount
+                    ";
+                    selectCommand.Parameters.AddWithValue("@Now", now);
+                    selectCommand.Parameters.AddWithValue("@MaxCount", maxCount);
+
+                    var orderIds = new List<string>();
+                    using (var reader = selectCommand.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            orderIds.Add(reader.GetString(0));
+                        }
+                    }
+
+                    if (orderIds.Count == 0)
+                    {
+                        transaction.Commit();
+                        return new List<TradeOrder>();
+                    }
+
+                    // Mark selected orders as being processed
+                    var updateCommand = connection.CreateCommand();
+                    updateCommand.Transaction = transaction;
+                    updateCommand.CommandText = @"
+                        UPDATE Orders 
+                        SET Processing = 1, 
+                            ProcessingBy = @ProcessingBy, 
+                            ProcessingAt = @ProcessingAt
+                        WHERE Id IN (" + string.Join(",", orderIds.Select((_, i) => $"@Id{i}")) + @")
+                    ";
+                    updateCommand.Parameters.AddWithValue("@ProcessingBy", consumerId);
+                    updateCommand.Parameters.AddWithValue("@ProcessingAt", now);
+                    for (int i = 0; i < orderIds.Count; i++)
+                    {
+                        updateCommand.Parameters.AddWithValue($"@Id{i}", orderIds[i]);
+                    }
+                    updateCommand.ExecuteNonQuery();
+
+                    // Retrieve the marked orders
+                    var retrieveCommand = connection.CreateCommand();
+                    retrieveCommand.Transaction = transaction;
+                    retrieveCommand.CommandText = @"
+                        SELECT * FROM Orders 
+                        WHERE Id IN (" + string.Join(",", orderIds.Select((_, i) => $"@Id{i}")) + @")
+                        ORDER BY Timestamp
+                    ";
+                    for (int i = 0; i < orderIds.Count; i++)
+                    {
+                        retrieveCommand.Parameters.AddWithValue($"@Id{i}", orderIds[i]);
+                    }
+
+                    var orders = new List<TradeOrder>();
+                    using (var reader = retrieveCommand.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            orders.Add(ReadOrder(reader));
+                        }
+                    }
+
+                    transaction.Commit();
+
+                    _logger.LogInformation("Retrieved {Count} pending orders for consumer {ConsumerId}", 
+                        orders.Count, SanitizeForLog(consumerId));
+
+                    return orders;
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    _logger.LogError(ex, "Error getting pending orders");
+                    throw;
+                }
             }
         }
 
@@ -217,7 +410,11 @@ namespace Bridge
                 var command = connection.CreateCommand();
                 command.CommandText = @"
                     UPDATE Orders 
-                    SET Processed = 1, ProcessedAt = @ProcessedAt 
+                    SET Processed = 1, 
+                        ProcessedAt = @ProcessedAt,
+                        Processing = 0,
+                        ProcessingBy = NULL,
+                        NextRetryAt = NULL
                     WHERE Id = @Id AND Processed = 0
                 ";
                 command.Parameters.AddWithValue("@Id", orderId);
@@ -228,6 +425,8 @@ namespace Bridge
                 if (rowsAffected > 0)
                 {
                     _logger.LogInformation("Order marked as processed: Id={Id}", SanitizeForLog(orderId));
+                    OrdersProcessedCounter.Inc();
+                    UpdatePendingOrdersGauge();
                     return true;
                 }
                 
@@ -440,6 +639,144 @@ namespace Bridge
                 }
 
                 return orders;
+            }
+        }
+
+        /// <summary>
+        /// Release orders that have been processing for too long (stale locks)
+        /// This handles cases where a consumer crashes without marking orders as processed
+        /// </summary>
+        public int ReleaseStaleProcessingOrders(TimeSpan timeout)
+        {
+            lock (_lock)
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                var cutoffTime = DateTime.UtcNow.Add(-timeout).ToString("o");
+                
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    UPDATE Orders 
+                    SET Processing = 0,
+                        ProcessingBy = NULL,
+                        RetryCount = RetryCount + 1,
+                        NextRetryAt = @NextRetryAt
+                    WHERE Processing = 1 
+                    AND Processed = 0
+                    AND ProcessingAt < @CutoffTime
+                    AND RetryCount < @MaxRetryCount
+                ";
+                command.Parameters.AddWithValue("@CutoffTime", cutoffTime);
+                command.Parameters.AddWithValue("@NextRetryAt", DateTime.UtcNow.AddSeconds(30).ToString("o"));
+                command.Parameters.AddWithValue("@MaxRetryCount", GetMaxRetryCount());
+
+                var released = command.ExecuteNonQuery();
+                
+                if (released > 0)
+                {
+                    _logger.LogWarning("Released {Count} stale processing orders", released);
+                }
+                
+                return released;
+            }
+        }
+
+        /// <summary>
+        /// Mark orders that have exceeded max retry count as failed
+        /// </summary>
+        public int MarkFailedOrders()
+        {
+            lock (_lock)
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    UPDATE Orders 
+                    SET Processing = 0,
+                        ProcessingBy = NULL,
+                        NextRetryAt = NULL
+                    WHERE Processing = 1 
+                    AND Processed = 0
+                    AND RetryCount >= @MaxRetryCount
+                ";
+                command.Parameters.AddWithValue("@MaxRetryCount", GetMaxRetryCount());
+
+                var marked = command.ExecuteNonQuery();
+                
+                if (marked > 0)
+                {
+                    _logger.LogError("Marked {Count} orders as failed due to max retry count", marked);
+                    OrdersFailedCounter.Inc(marked);
+                }
+                
+                return marked;
+            }
+        }
+
+        private int GetMaxRetryCount()
+        {
+            // This should come from configuration, but we'll use a default for now
+            return 3;
+        }
+
+        /// <summary>
+        /// Update Prometheus gauge with current pending orders count
+        /// </summary>
+        private void UpdatePendingOrdersGauge()
+        {
+            try
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+                
+                var command = connection.CreateCommand();
+                command.CommandText = "SELECT COUNT(*) FROM Orders WHERE Processed = 0";
+                var count = Convert.ToInt32(command.ExecuteScalar());
+                PendingOrdersGauge.Set(count);
+                
+                // Also update retry queue size
+                command.CommandText = @"
+                    SELECT COUNT(*) FROM Orders 
+                    WHERE Processed = 0 
+                    AND NextRetryAt IS NOT NULL 
+                    AND NextRetryAt > @Now
+                ";
+                command.Parameters.AddWithValue("@Now", DateTime.UtcNow.ToString("o"));
+                var retryCount = Convert.ToInt32(command.ExecuteScalar());
+                RetryQueueSizeGauge.Set(retryCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to update metrics gauge");
+            }
+        }
+
+        /// <summary>
+        /// Check if database is accessible and healthy
+        /// </summary>
+        public bool CheckDatabaseHealth()
+        {
+            try
+            {
+                lock (_lock)
+                {
+                    using var connection = new SqliteConnection(_connectionString);
+                    connection.Open();
+
+                    var command = connection.CreateCommand();
+                    command.CommandText = "SELECT COUNT(*) FROM Orders LIMIT 1";
+                    command.ExecuteScalar();
+                    
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Database health check failed");
+                return false;
             }
         }
     }
