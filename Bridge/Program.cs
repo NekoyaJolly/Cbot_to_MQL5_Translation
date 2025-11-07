@@ -451,7 +451,7 @@ namespace Bridge
     /// <summary>
     /// Bridge Server Program
     /// </summary>
-    public class Program
+    public partial class Program
     {
         public static void Main(string[] args)
         {
