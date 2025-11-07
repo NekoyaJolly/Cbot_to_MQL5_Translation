@@ -143,8 +143,9 @@ public:
                 // Parse value
                 if(StringGetCharacter(value, 0) == '"')
                 {
-                    // String value
-                    item.m_str_value = StringSubstr(value, 1, StringLen(value) - 2);
+                    // String value - extract and unescape
+                    string rawStr = StringSubstr(value, 1, StringLen(value) - 2);
+                    item.m_str_value = UnescapeString(rawStr);
                     item.m_is_string = true;
                 }
                 else if(value == "null")
@@ -340,6 +341,65 @@ public:
         if(m_is_number)
             return m_num_value != 0;
         return m_str_value == "true";
+    }
+    
+    // Unescape JSON string (handle \", \\, \n, \r, \t, \/)
+    static string UnescapeString(string value)
+    {
+        string result = "";
+        int len = StringLen(value);
+        
+        for(int i = 0; i < len; i++)
+        {
+            ushort ch = StringGetCharacter(value, i);
+            
+            if(ch == '\\' && i + 1 < len)
+            {
+                ushort nextCh = StringGetCharacter(value, i + 1);
+                
+                if(nextCh == '"')
+                {
+                    result += "\"";
+                    i++; // Skip next char
+                }
+                else if(nextCh == '\\')
+                {
+                    result += "\\";
+                    i++;
+                }
+                else if(nextCh == 'n')
+                {
+                    result += "\n";
+                    i++;
+                }
+                else if(nextCh == 'r')
+                {
+                    result += "\r";
+                    i++;
+                }
+                else if(nextCh == 't')
+                {
+                    result += "\t";
+                    i++;
+                }
+                else if(nextCh == '/')
+                {
+                    result += "/";
+                    i++;
+                }
+                else
+                {
+                    // Unknown escape, keep as-is
+                    result += CharToString(ch);
+                }
+            }
+            else
+            {
+                result += CharToString(ch);
+            }
+        }
+        
+        return result;
     }
 };
 //+------------------------------------------------------------------+

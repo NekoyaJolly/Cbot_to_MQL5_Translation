@@ -13,10 +13,12 @@
 
 //--- Input parameters
 input string BridgeUrl = "http://localhost:5000";  // Bridge Server URL
+input string BridgeApiKey = "";                      // Bridge API Key (X-API-KEY header)
 input int    PollInterval = 1000;                   // Poll interval in milliseconds
 input bool   EnableSync = true;                     // Enable synchronization
 input double SlippagePoints = 10;                   // Slippage in points
 input int    MagicNumber = 123456;                  // Magic number for orders
+input bool   DryRun = false;                         // Dry run mode (log only, no actual trades)
 
 //--- Global variables
 CTrade trade;
@@ -32,10 +34,17 @@ ulong g_tickets[];
 // Failed requests log file
 string g_failedRequestsFile = "TradeSyncReceiver_Failed.log";
 
+// Ticket mapping persistence file
+string g_ticketMappingFile = "TradeSyncReceiver_TicketMap.dat";
+
 // Rate limiting
 #define MAX_REQUESTS_PER_MINUTE 60
 int requestsThisMinute = 0;
 datetime lastMinuteReset;
+
+// Sanity check limits for file persistence
+#define MAX_TICKET_MAPPINGS 10000  // Maximum number of mappings to load from file
+#define MAX_SOURCE_ID_LENGTH 1000  // Maximum length of sourceId string
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -45,6 +54,7 @@ int OnInit()
     Print("TradeSyncReceiver EA started");
     Print("Bridge URL: ", BridgeUrl);
     Print("Poll Interval: ", PollInterval, "ms");
+    Print("Dry Run Mode: ", DryRun ? "ENABLED (No actual trades)" : "DISABLED");
     
     // IMPORTANT: WebRequest Configuration Required
     // Go to Tools -> Options -> Expert Advisors
@@ -67,6 +77,9 @@ int OnInit()
     // Initialize ticket mapping arrays
     ArrayResize(g_sourceIds, 0);
     ArrayResize(g_tickets, 0);
+    
+    // Load ticket mappings from file
+    LoadTicketMappingsFromFile();
     
     return(INIT_SUCCEEDED);
 }
@@ -360,6 +373,13 @@ bool ProcessPositionOpened(CJAVal* order)
     if(takeProfit > 0)
         takeProfit = NormalizeDouble(takeProfit, (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS));
     
+    // Dry run mode - log only, don't execute
+    if(DryRun)
+    {
+        Print("[DRY RUN] Would open position: ", symbol, " ", direction, " ", volume, " lots, SL=", stopLoss, " TP=", takeProfit);
+        return true; // Consider success in dry run mode
+    }
+    
     // Open position
     bool result;
     if(orderType == ORDER_TYPE_BUY)
@@ -376,6 +396,8 @@ bool ProcessPositionOpened(CJAVal* order)
         if(ticket > 0)
         {
             AddTicketMapping(sourceId, ticket);
+            // Send mapping to Bridge for persistence
+            SendTicketMappingToBridge(sourceId, ticket, symbol, DoubleToString(volume));
         }
         
         return true;
@@ -405,6 +427,13 @@ bool ProcessPositionClosed(CJAVal* order)
     long positionId = order.GetIntByKey("PositionId");
     
     symbol = NormalizeSymbol(symbol);
+    
+    // Dry run mode - log only
+    if(DryRun)
+    {
+        Print("[DRY RUN] Would close position: ", symbol);
+        return true;
+    }
     
     // First try to find by sourceId in ticket_map
     ulong ticket = GetTicketBySourceId(sourceId);
@@ -468,6 +497,13 @@ bool ProcessPositionModified(CJAVal* order)
     double takeProfit = order.GetDoubleByKey("TakeProfit");
     
     symbol = NormalizeSymbol(symbol);
+    
+    // Dry run mode - log only
+    if(DryRun)
+    {
+        Print("[DRY RUN] Would modify position: ", symbol, " SL=", stopLoss, " TP=", takeProfit);
+        return true;
+    }
     
     // Try to find by sourceId first
     ulong ticket = GetTicketBySourceId(sourceId);
@@ -611,6 +647,13 @@ bool ProcessPendingOrderCreated(CJAVal* order)
     if(takeProfit > 0)
         takeProfit = NormalizeDouble(takeProfit, digits);
     
+    // Dry run mode - log only
+    if(DryRun)
+    {
+        Print("[DRY RUN] Would create pending order: ", symbol, " ", orderTypeStr, " ", direction, " at ", targetPrice, " SL=", stopLoss, " TP=", takeProfit);
+        return true;
+    }
+    
     // Place pending order
     if(trade.OrderOpen(symbol, orderType, volume, 0, targetPrice, stopLoss, takeProfit, 
                        ORDER_TIME_GTC, 0, comment))
@@ -622,6 +665,8 @@ bool ProcessPendingOrderCreated(CJAVal* order)
         if(ticket > 0)
         {
             AddTicketMapping(sourceId, ticket);
+            // Send mapping to Bridge for persistence
+            SendTicketMappingToBridge(sourceId, ticket, symbol, DoubleToString(volume));
         }
         
         return true;
@@ -646,6 +691,13 @@ bool ProcessPendingOrderCancelled(CJAVal* order)
     long orderId = order.GetIntByKey("OrderId");
     
     symbol = NormalizeSymbol(symbol);
+    
+    // Dry run mode - log only
+    if(DryRun)
+    {
+        Print("[DRY RUN] Would cancel pending order: ", symbol);
+        return true;
+    }
     
     // Try to find by sourceId first
     ulong ticket = GetTicketBySourceId(sourceId);
@@ -711,6 +763,12 @@ void MarkOrderAsProcessed(string orderId)
     string url = BridgeUrl + "/api/orders/" + orderId + "/processed";
     string headers = "Content-Type: application/json\r\n";
     
+    // Add API Key header if configured
+    if(StringLen(BridgeApiKey) > 0)
+    {
+        headers += "X-API-KEY: " + BridgeApiKey + "\r\n";
+    }
+    
     char data[];
     char result[];
     string resultHeaders;
@@ -721,7 +779,7 @@ void MarkOrderAsProcessed(string orderId)
     
     if(res != 200)
     {
-        Print("Failed to mark order as processed: ", orderId);
+        Print("Failed to mark order as processed: ", orderId, " HTTP Status: ", res);
     }
 }
 
@@ -773,6 +831,9 @@ void AddTicketMapping(string sourceId, ulong ticket)
     g_tickets[size] = ticket;
     
     Print("Ticket mapping added: ", sourceId, " -> ", ticket);
+    
+    // Save to file for persistence across EA restarts
+    SaveTicketMappingsToFile();
 }
 
 //+------------------------------------------------------------------+
@@ -805,6 +866,9 @@ void RemoveTicketMapping(string sourceId)
             }
             ArrayResize(g_sourceIds, ArraySize(g_sourceIds) - 1);
             ArrayResize(g_tickets, ArraySize(g_tickets) - 1);
+            
+            // Save updated mapping to file
+            SaveTicketMappingsToFile();
             break;
         }
     }
@@ -815,7 +879,8 @@ void RemoveTicketMapping(string sourceId)
 //+------------------------------------------------------------------+
 void LogFailedRequest(string orderId, string eventType, string reason, string jsonData)
 {
-    int fileHandle = FileOpen(g_failedRequestsFile, FILE_WRITE|FILE_READ|FILE_TXT|FILE_ANSI);
+    // Use FILE_COMMON for shared access across terminal instances
+    int fileHandle = FileOpen(g_failedRequestsFile, FILE_WRITE|FILE_READ|FILE_SHARE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);
     if(fileHandle != INVALID_HANDLE)
     {
         FileSeek(fileHandle, 0, SEEK_END);
@@ -832,6 +897,207 @@ void LogFailedRequest(string orderId, string eventType, string reason, string js
     else
     {
         Print("Failed to open log file: ", GetLastError());
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Save ticket mappings to file (FILE_COMMON for persistence)       |
+//+------------------------------------------------------------------+
+void SaveTicketMappingsToFile()
+{
+    int fileHandle = FileOpen(g_ticketMappingFile, FILE_WRITE|FILE_BIN|FILE_COMMON);
+    if(fileHandle != INVALID_HANDLE)
+    {
+        int count = ArraySize(g_sourceIds);
+        FileWriteInteger(fileHandle, count, INT_VALUE);
+        
+        for(int i = 0; i < count; i++)
+        {
+            // Write sourceId length and string
+            int sourceIdLen = StringLen(g_sourceIds[i]);
+            FileWriteInteger(fileHandle, sourceIdLen, INT_VALUE);
+            FileWriteString(fileHandle, g_sourceIds[i], sourceIdLen);
+            
+            // Write ticket (ulong as long - MQL5 doesn't have FileWriteUlong)
+            // Validate ticket doesn't exceed LONG_MAX for safe storage
+            long ticketToWrite = (g_tickets[i] <= 9223372036854775807) ? (long)g_tickets[i] : 0;
+            if(ticketToWrite == 0 && g_tickets[i] > 0)
+            {
+                Print("Warning: Ticket ", g_tickets[i], " exceeds LONG_MAX, skipped in file");
+            }
+            FileWriteLong(fileHandle, ticketToWrite);
+        }
+        
+        FileClose(fileHandle);
+        Print("Ticket mappings saved to file: ", count, " entries");
+    }
+    else
+    {
+        Print("Failed to save ticket mappings: ", GetLastError());
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Load ticket mappings from file (FILE_COMMON)                     |
+//+------------------------------------------------------------------+
+void LoadTicketMappingsFromFile()
+{
+    int fileHandle = FileOpen(g_ticketMappingFile, FILE_READ|FILE_BIN|FILE_COMMON);
+    if(fileHandle != INVALID_HANDLE)
+    {
+        int count = FileReadInteger(fileHandle, INT_VALUE);
+        
+        if(count > 0 && count < MAX_TICKET_MAPPINGS) // Sanity check
+        {
+            ArrayResize(g_sourceIds, 0);
+            ArrayResize(g_tickets, 0);
+            
+            int validCount = 0;
+            for(int i = 0; i < count; i++)
+            {
+                // Read sourceId length
+                int sourceIdLen = FileReadInteger(fileHandle, INT_VALUE);
+                
+                // Read sourceId string
+                string sourceId = "";
+                if(sourceIdLen > 0 && sourceIdLen < MAX_SOURCE_ID_LENGTH)
+                {
+                    sourceId = FileReadString(fileHandle, sourceIdLen);
+                }
+                else if(sourceIdLen > 0)
+                {
+                    // Skip invalid sourceId
+                    FileSeek(fileHandle, sourceIdLen, SEEK_CUR);
+                }
+                
+                // Read ticket (stored as long, convert to ulong)
+                // Validate the long value is positive before converting to ulong
+                long ticketLong = FileReadLong(fileHandle);
+                ulong ticket = 0;
+                if(ticketLong > 0 && ticketLong <= 9223372036854775807)
+                {
+                    ticket = (ulong)ticketLong;
+                }
+                else if(ticketLong < 0)
+                {
+                    Print("Warning: Invalid negative ticket value ", ticketLong, " skipped");
+                }
+                
+                // Only add to arrays if sourceId is valid and ticket is valid
+                if(StringLen(sourceId) > 0 && ticket > 0)
+                {
+                    int size = ArraySize(g_sourceIds);
+                    ArrayResize(g_sourceIds, size + 1);
+                    ArrayResize(g_tickets, size + 1);
+                    g_sourceIds[size] = sourceId;
+                    g_tickets[size] = ticket;
+                    validCount++;
+                }
+            }
+            
+            Print("Ticket mappings loaded from file: ", validCount, " valid entries out of ", count);
+        }
+        
+        FileClose(fileHandle);
+    }
+    else
+    {
+        Print("No existing ticket mapping file found (will be created on first mapping)");
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Escape string for JSON                                            |
+//+------------------------------------------------------------------+
+string EscapeJsonString(string str)
+{
+    string result = "";
+    int len = StringLen(str);
+    
+    for(int i = 0; i < len; i++)
+    {
+        ushort ch = StringGetCharacter(str, i);
+        
+        if(ch == '"')
+            result += "\\\"";
+        else if(ch == '\\')
+            result += "\\\\";
+        else if(ch == '\n')
+            result += "\\n";
+        else if(ch == '\r')
+            result += "\\r";
+        else if(ch == '\t')
+            result += "\\t";
+        else
+            result += CharToString(ch);
+    }
+    
+    return result;
+}
+
+//+------------------------------------------------------------------+
+//| Prepare JSON string for WebRequest (convert to char array)       |
+//+------------------------------------------------------------------+
+bool PrepareJsonDataForWebRequest(string jsonBody, char &data[])
+{
+    // Use explicit length parameter and UTF8 encoding
+    int len = StringToCharArray(jsonBody, data, 0, WHOLE_ARRAY, CP_UTF8);
+    if(len > 0 && data[len-1] == 0)
+        ArrayResize(data, len - 1); // Remove null terminator if present
+    
+    return len > 0;
+}
+
+//+------------------------------------------------------------------+
+//| Send ticket mapping to Bridge server for persistence             |
+//+------------------------------------------------------------------+
+void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string symbol, string lots)
+{
+    string url = BridgeUrl + "/api/ticket-map";
+    string headers = "Content-Type: application/json\r\n";
+    
+    // Add API Key header if configured
+    if(StringLen(BridgeApiKey) > 0)
+    {
+        headers += "X-API-KEY: " + BridgeApiKey + "\r\n";
+    }
+    
+    // Escape strings for JSON
+    string escapedSourceTicket = EscapeJsonString(sourceTicket);
+    string escapedSymbol = EscapeJsonString(symbol);
+    string escapedLots = EscapeJsonString(lots);
+    
+    // Create JSON body with escaped strings
+    // Format ulong ticket as string using StringConcatenate (proper ulong handling)
+    string ticketStr;
+    StringConcatenate(ticketStr, slaveTicket);
+    
+    string jsonBody = StringFormat(
+        "{\"SourceTicket\":\"%s\",\"SlaveTicket\":\"%s\",\"Symbol\":\"%s\",\"Lots\":\"%s\"}",
+        escapedSourceTicket, ticketStr, escapedSymbol, escapedLots
+    );
+    
+    char data[];
+    if(!PrepareJsonDataForWebRequest(jsonBody, data))
+    {
+        Print("Failed to prepare JSON data for ticket mapping");
+        return;
+    }
+    
+    char result[];
+    string resultHeaders;
+    
+    int timeout = 5000;
+    
+    int res = WebRequest("POST", url, headers, timeout, data, result, resultHeaders);
+    
+    if(res == 200)
+    {
+        Print("Ticket mapping sent to Bridge: ", sourceTicket, " -> ", slaveTicket);
+    }
+    else
+    {
+        Print("Failed to send ticket mapping to Bridge: HTTP Status ", res);
     }
 }
 //+------------------------------------------------------------------+
