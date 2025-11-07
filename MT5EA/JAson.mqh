@@ -390,12 +390,12 @@ public:
                 else
                 {
                     // Unknown escape, keep as-is
-                    result += CharToString((ushort)ch);
+                    result += CharToString(ch);
                 }
             }
             else
             {
-                result += CharToString((ushort)ch);
+                result += CharToString(ch);
             }
         }
         

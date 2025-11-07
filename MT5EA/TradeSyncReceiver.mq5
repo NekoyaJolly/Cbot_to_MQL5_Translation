@@ -1019,14 +1019,17 @@ void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string sy
     string escapedLots = EscapeJsonString(lots);
     
     // Create JSON body with escaped strings
+    // Use IntegerToString for better portability across MQL5 versions
     string jsonBody = StringFormat(
-        "{\"SourceTicket\":\"%s\",\"SlaveTicket\":\"%I64u\",\"Symbol\":\"%s\",\"Lots\":\"%s\"}",
-        escapedSourceTicket, slaveTicket, escapedSymbol, escapedLots
+        "{\"SourceTicket\":\"%s\",\"SlaveTicket\":\"%s\",\"Symbol\":\"%s\",\"Lots\":\"%s\"}",
+        escapedSourceTicket, IntegerToString(slaveTicket), escapedSymbol, escapedLots
     );
     
     char data[];
-    StringToCharArray(jsonBody, data, 0, StringLen(jsonBody));
-    ArrayResize(data, ArraySize(data) - 1); // Remove null terminator
+    // Use explicit length parameter and UTF8 encoding
+    int len = StringToCharArray(jsonBody, data, 0, WHOLE_ARRAY, CP_UTF8);
+    if(len > 0 && data[len-1] == 0)
+        ArrayResize(data, len - 1); // Remove null terminator if present
     
     char result[];
     string resultHeaders;
