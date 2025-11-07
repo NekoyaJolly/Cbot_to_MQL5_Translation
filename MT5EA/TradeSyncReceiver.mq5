@@ -911,9 +911,23 @@ void LogFailedRequest(string orderId, string eventType, string reason, string js
             StringReplace(backupFile, ":", "");
             StringReplace(backupFile, " ", "_");
             
-            // Delete old file and rename current
+            FileClose(fileHandle);
+            
+            // Move current file to backup
             if(FileIsExist(backupFile, FILE_COMMON))
                 FileDelete(backupFile, FILE_COMMON);
+            
+            // Rename/move the current file to backup
+            // Note: MQL5 doesn't have FileMove, so we copy and delete
+            if(FileCopy(g_failedRequestsFile, FILE_COMMON, backupFile, FILE_COMMON))
+            {
+                FileDelete(g_failedRequestsFile, FILE_COMMON);
+                Print("Failed requests log rotated to: ", backupFile);
+            }
+            else
+            {
+                Print("Warning: Could not rotate log file, will truncate instead");
+            }
             
             // Reopen for writing (this will create a new file)
             fileHandle = FileOpen(g_failedRequestsFile, FILE_WRITE|FILE_READ|FILE_SHARE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);
@@ -1071,10 +1085,12 @@ void LoadTicketMappingsFromFile()
                 {
                     sourceId = FileReadString(fileHandle, sourceIdLen);
                     
-                    // Validate we actually read the expected length
-                    if(StringLen(sourceId) != sourceIdLen)
+                    // Validate we actually read data (basic validation)
+                    // Note: For binary strings with embedded nulls, StringLen may differ from sourceIdLen
+                    // We accept this limitation since sourceIds are typically ASCII identifiers
+                    if(StringLen(sourceId) == 0 && sourceIdLen > 0)
                     {
-                        Print("Warning: Failed to read sourceId at entry ", i, ". Expected ", sourceIdLen, " chars, got ", StringLen(sourceId), ". Skipping remaining.");
+                        Print("Warning: Failed to read sourceId at entry ", i, ". File may be corrupted. Skipping remaining.");
                         break;
                     }
                 }

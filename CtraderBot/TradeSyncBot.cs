@@ -499,6 +499,7 @@ namespace CtraderBot
 
                 var messageCount = 0;
                 const int MAX_MESSAGES_TO_LOAD = 10000; // Prevent memory exhaustion
+                const int FILE_SIZE_BUFFER_MULTIPLIER = 2; // Allow 2x buffer to handle transient size increases
                 
                 // Load from main persist file
                 if (System.IO.File.Exists(_persistFile))
@@ -511,7 +512,7 @@ namespace CtraderBot
                             var fileInfo = new System.IO.FileInfo(_persistFile);
                             var maxFileSize = MaxPersistFileSizeMB * 1024 * 1024;
                             
-                            if (fileInfo.Length > maxFileSize * 2) // Allow 2x buffer
+                            if (fileInfo.Length > maxFileSize * FILE_SIZE_BUFFER_MULTIPLIER)
                             {
                                 Print("Warning: Persist file {0} is too large ({1} bytes). Rotating before loading.", 
                                       _persistFile, fileInfo.Length);
