@@ -236,8 +236,11 @@ namespace E2ETests
                 var response = await client.PostAsJsonAsync("/api/orders", order);
                 response.EnsureSuccessStatusCode();
                 var orderId = ExtractOrderId(await response.Content.ReadAsStringAsync());
-                orderIds.Add(orderId);
-                _output.WriteLine($"  Order {i + 1} queued: {orderId}");
+                if (orderId != null)
+                {
+                    orderIds.Add(orderId);
+                    _output.WriteLine($"  Order {i + 1} queued: {orderId}");
+                }
             }
 
             // Step 2: MT5 EA polls and receives orders
@@ -402,6 +405,7 @@ namespace E2ETests
             var startIdx = jsonResponse.IndexOf("orderId\":\"") + 10;
             if (startIdx < 10) return null;
             var endIdx = jsonResponse.IndexOf("\"", startIdx);
+            if (endIdx < 0) return null; // Handle case where closing quote is not found
             return jsonResponse.Substring(startIdx, endIdx - startIdx);
         }
     }
