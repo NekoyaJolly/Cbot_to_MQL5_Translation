@@ -150,7 +150,7 @@ namespace Bridge
         /// Get pending orders for MT5
         /// </summary>
         [HttpGet("orders/pending")]
-        public IActionResult GetPendingOrders([FromQuery] int maxCount = 10)
+        public IActionResult GetPendingOrders([FromQuery] int maxCount = 10, [FromQuery] string consumerId = null)
         {
             try
             {
@@ -160,7 +160,7 @@ namespace Bridge
                 if (maxCount > 100)
                     maxCount = 100;
                 
-                var orders = _queueManager.GetPendingOrders(maxCount);
+                var orders = _queueManager.GetPendingOrders(maxCount, consumerId);
                 return Ok(orders);
             }
             catch (Exception ex)
@@ -255,7 +255,37 @@ namespace Bridge
         [HttpGet("health")]
         public IActionResult Health()
         {
-            return Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow });
+            try
+            {
+                // Ping database to ensure it's accessible
+                var dbHealthy = _queueManager.CheckDatabaseHealth();
+                
+                if (dbHealthy)
+                {
+                    return Ok(new { 
+                        Status = "Healthy", 
+                        Timestamp = DateTime.UtcNow,
+                        Database = "Connected"
+                    });
+                }
+                else
+                {
+                    return StatusCode(503, new { 
+                        Status = "Unhealthy", 
+                        Timestamp = DateTime.UtcNow,
+                        Database = "Disconnected"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Health check failed");
+                return StatusCode(503, new { 
+                    Status = "Unhealthy", 
+                    Timestamp = DateTime.UtcNow,
+                    Error = "Health check failed"
+                });
+            }
         }
 
         /// <summary>
@@ -421,7 +451,7 @@ namespace Bridge
     /// <summary>
     /// Bridge Server Program
     /// </summary>
-    public class Program
+    public partial class Program
     {
         public static void Main(string[] args)
         {
@@ -452,10 +482,11 @@ namespace Bridge
                         
                         // Register persistent queue manager as singleton
                         var databasePath = context.Configuration["Bridge:DatabasePath"] ?? "bridge.db";
+                        var maxRetryCount = context.Configuration.GetValue("Bridge:Retry:MaxRetryCount", 3);
                         services.AddSingleton<PersistentOrderQueueManager>(sp => 
                         {
                             var logger = sp.GetRequiredService<ILogger<PersistentOrderQueueManager>>();
-                            return new PersistentOrderQueueManager(databasePath, logger);
+                            return new PersistentOrderQueueManager(databasePath, logger, maxRetryCount);
                         });
                         
                         services.AddCors(options =>
@@ -471,6 +502,9 @@ namespace Bridge
 
                         // Add background service for cleanup
                         services.AddHostedService<CleanupService>();
+                        
+                        // Add background service for retry and stale order handling
+                        services.AddHostedService<RetryService>();
                         
                         // Get listen URL from configuration
                         var listenUrl = context.Configuration["Bridge:ListenUrl"] ?? "http://0.0.0.0:5000";
@@ -533,6 +567,51 @@ namespace Bridge
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error in cleanup service");
+                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Background service to handle retries and release stale processing orders
+    /// </summary>
+    public class RetryService : BackgroundService
+    {
+        private readonly PersistentOrderQueueManager _queueManager;
+        private readonly ILogger<RetryService> _logger;
+        private readonly IConfiguration _configuration;
+
+        public RetryService(PersistentOrderQueueManager queueManager, ILogger<RetryService> logger, IConfiguration configuration)
+        {
+            _queueManager = queueManager;
+            _logger = logger;
+            _configuration = configuration;
+        }
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            var checkInterval = TimeSpan.FromSeconds(30);
+            var staleTimeout = _configuration.GetValue("Bridge:StaleProcessingTimeout", TimeSpan.FromMinutes(5));
+            
+            _logger.LogInformation("RetryService started: CheckInterval={CheckInterval}, StaleTimeout={StaleTimeout}", 
+                checkInterval, staleTimeout);
+            
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    // Release stale processing orders (orders that have been processing for too long)
+                    _queueManager.ReleaseStaleProcessingOrders(staleTimeout);
+                    
+                    // Mark orders that have exceeded max retry count as failed
+                    _queueManager.MarkFailedOrders();
+                    
+                    await Task.Delay(checkInterval, stoppingToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in retry service");
                     await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                 }
             }
