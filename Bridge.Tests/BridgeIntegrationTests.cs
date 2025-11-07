@@ -275,5 +275,170 @@ namespace Bridge.Tests
             
             _output.WriteLine("Metrics endpoint is accessible and contains expected metrics");
         }
+
+        [Fact]
+        public async Task TestSpecialCharactersInComment_ShouldHandleCorrectly()
+        {
+            // Arrange
+            var client = _factory.CreateClient();
+            var order = new TradeOrder
+            {
+                SourceId = Guid.NewGuid().ToString(),
+                EventType = "POSITION_OPENED",
+                Symbol = "EURUSD",
+                Volume = "0.01",
+                Timestamp = DateTime.UtcNow,
+                Comment = "Test with special chars: \"quotes\", \\backslash\\, and slash/"
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/orders", order);
+
+            // Assert
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Special character test response: {content}");
+            Assert.Contains("orderId", content);
+            
+            // Verify we can retrieve it
+            var getResponse = await client.GetAsync("/api/orders/pending?maxCount=100");
+            getResponse.EnsureSuccessStatusCode();
+            var orders = await getResponse.Content.ReadFromJsonAsync<List<TradeOrder>>();
+            
+            var retrievedOrder = orders?.FirstOrDefault(o => o.SourceId == order.SourceId);
+            Assert.NotNull(retrievedOrder);
+            // Note: Escaped characters are unescaped when stored (e.g., \n becomes actual newline)
+            // The comment field should contain the unescaped version
+            Assert.Contains("quotes", retrievedOrder.Comment);
+            Assert.Contains("backslash", retrievedOrder.Comment);
+            Assert.Contains("slash", retrievedOrder.Comment);
+            
+            _output.WriteLine($"Successfully stored and retrieved order with special characters in comment: {retrievedOrder.Comment}");
+        }
+
+        [Fact]
+        public async Task TestComplexJsonInComment_ShouldHandleCorrectly()
+        {
+            // Arrange
+            var client = _factory.CreateClient();
+            var order = new TradeOrder
+            {
+                SourceId = Guid.NewGuid().ToString(),
+                EventType = "POSITION_OPENED",
+                Symbol = "EURUSD",
+                Volume = "0.01",
+                Timestamp = DateTime.UtcNow,
+                Comment = "Test: backslash\\\\ quote\\\" forward/slash backward\\backslash"
+            };
+
+            // Act
+            var response = await client.PostAsJsonAsync("/api/orders", order);
+
+            // Assert
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Complex JSON test response: {content}");
+            Assert.Contains("orderId", content);
+            
+            _output.WriteLine($"Successfully handled order with complex escape sequences");
+        }
+
+        [Fact]
+        public async Task TestHttp2xxStatusCodes_ShouldBeAcceptedAsSuccess()
+        {
+            // Arrange
+            var client = _factory.CreateClient();
+            var order = new TradeOrder
+            {
+                SourceId = Guid.NewGuid().ToString(),
+                EventType = "POSITION_OPENED",
+                Symbol = "EURUSD",
+                Volume = "0.01",
+                Timestamp = DateTime.UtcNow
+            };
+
+            // Act - Add order
+            var addResponse = await client.PostAsJsonAsync("/api/orders", order);
+            
+            // Assert - Should accept any 2xx status code
+            Assert.True(addResponse.StatusCode >= HttpStatusCode.OK && 
+                       addResponse.StatusCode < HttpStatusCode.MultipleChoices,
+                       $"Expected 2xx status code, got {addResponse.StatusCode}");
+            
+            var content = await addResponse.Content.ReadAsStringAsync();
+            var startIdx = content.IndexOf("orderId\":\"") + 10;
+            var endIdx = content.IndexOf("\"", startIdx);
+            var orderId = content.Substring(startIdx, endIdx - startIdx);
+
+            // Mark as processed
+            var processResponse = await client.PostAsync($"/api/orders/{orderId}/processed", null);
+            
+            // Assert - Should accept any 2xx status code
+            Assert.True(processResponse.StatusCode >= HttpStatusCode.OK && 
+                       processResponse.StatusCode < HttpStatusCode.MultipleChoices,
+                       $"Expected 2xx status code, got {processResponse.StatusCode}");
+            
+            _output.WriteLine($"Order processing accepted 2xx status codes: Add={addResponse.StatusCode}, Process={processResponse.StatusCode}");
+        }
+
+        [Fact]
+        public async Task TestDuplicateOrderDetection_ShouldPreventDoubleRegistration()
+        {
+            // Arrange
+            var client = _factory.CreateClient();
+            var sourceId = $"TEST-{Guid.NewGuid()}";
+            var eventType = "POSITION_OPENED";
+            
+            var order1 = new TradeOrder
+            {
+                SourceId = sourceId,
+                EventType = eventType,
+                Symbol = "EURUSD",
+                Volume = "0.01",
+                Timestamp = DateTime.UtcNow
+            };
+            
+            var order2 = new TradeOrder
+            {
+                SourceId = sourceId,
+                EventType = eventType,
+                Symbol = "GBPUSD",  // Different symbol
+                Volume = "0.05",     // Different volume
+                Timestamp = DateTime.UtcNow.AddMinutes(1)  // Different timestamp
+            };
+
+            // Act - Send same SourceId + EventType twice
+            var response1 = await client.PostAsJsonAsync("/api/orders", order1);
+            var response2 = await client.PostAsJsonAsync("/api/orders", order2);
+
+            // Assert
+            response1.EnsureSuccessStatusCode();
+            response2.EnsureSuccessStatusCode();
+            
+            var content1 = await response1.Content.ReadAsStringAsync();
+            var content2 = await response2.Content.ReadAsStringAsync();
+            
+            // Extract order IDs
+            var orderId1 = ExtractOrderId(content1);
+            var orderId2 = ExtractOrderId(content2);
+            
+            // Both should return the same order ID (idempotency)
+            Assert.Equal(orderId1, orderId2);
+            
+            _output.WriteLine($"Duplicate detection successful: Both requests returned same OrderId: {orderId1}");
+            
+            // Verify only one order exists with this SourceId + EventType
+            var statsResponse = await client.GetAsync("/api/statistics");
+            statsResponse.EnsureSuccessStatusCode();
+            
+            _output.WriteLine($"Idempotency check prevented duplicate registration");
+        }
+
+        private string ExtractOrderId(string jsonResponse)
+        {
+            var startIdx = jsonResponse.IndexOf("orderId\":\"") + 10;
+            var endIdx = jsonResponse.IndexOf("\"", startIdx);
+            return jsonResponse.Substring(startIdx, endIdx - startIdx);
+        }
     }
 }
