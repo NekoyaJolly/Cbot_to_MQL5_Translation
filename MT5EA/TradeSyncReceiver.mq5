@@ -22,6 +22,20 @@ input int    MagicNumber = 123456;                  // Magic number for orders
 CTrade trade;
 datetime lastPollTime;
 int requestCount = 0;
+int consecutiveFailures = 0;  // Track consecutive failures for backoff
+datetime lastSuccessTime;
+
+// Ticket mapping: sourceId -> MT5 ticket
+string g_sourceIds[];
+ulong g_tickets[];
+
+// Failed requests log file
+string g_failedRequestsFile = "TradeSyncReceiver_Failed.log";
+
+// Rate limiting
+#define MAX_REQUESTS_PER_MINUTE 60
+int requestsThisMinute = 0;
+datetime lastMinuteReset;
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -32,6 +46,12 @@ int OnInit()
     Print("Bridge URL: ", BridgeUrl);
     Print("Poll Interval: ", PollInterval, "ms");
     
+    // IMPORTANT: WebRequest Configuration Required
+    // Go to Tools -> Options -> Expert Advisors
+    // Add the Bridge URL to the "Allow WebRequest for listed URL" list
+    // Example: http://localhost:5000
+    Print("NOTICE: Ensure Bridge URL is in WebRequest allowed list (Tools->Options->Expert Advisors)");
+    
     // Configure trade object
     trade.SetDeviationInPoints((ulong)SlippagePoints);
     trade.SetExpertMagicNumber(MagicNumber);
@@ -39,6 +59,14 @@ int OnInit()
     trade.SetAsyncMode(false);
     
     lastPollTime = TimeCurrent();
+    lastSuccessTime = TimeCurrent();
+    lastMinuteReset = TimeCurrent();
+    consecutiveFailures = 0;
+    requestsThisMinute = 0;
+    
+    // Initialize ticket mapping arrays
+    ArrayResize(g_sourceIds, 0);
+    ArrayResize(g_tickets, 0);
     
     return(INIT_SUCCEEDED);
 }
@@ -75,6 +103,35 @@ void OnTick()
 //+------------------------------------------------------------------+
 void PollBridgeForOrders()
 {
+    // Reset rate limit counter every minute
+    datetime currentTime = TimeCurrent();
+    if((currentTime - lastMinuteReset) >= 60)
+    {
+        requestsThisMinute = 0;
+        lastMinuteReset = currentTime;
+    }
+    
+    // Rate limiting: don't exceed MAX_REQUESTS_PER_MINUTE
+    if(requestsThisMinute >= MAX_REQUESTS_PER_MINUTE)
+    {
+        if(requestsThisMinute == MAX_REQUESTS_PER_MINUTE)
+        {
+            Print("Rate limit reached (", MAX_REQUESTS_PER_MINUTE, " requests/minute). Throttling requests.");
+            requestsThisMinute++; // Increment to avoid printing this message repeatedly
+        }
+        return;
+    }
+    
+    // Exponential backoff after consecutive failures
+    if(consecutiveFailures > 0)
+    {
+        int backoffSeconds = (int)MathPow(2, MathMin(consecutiveFailures, 5)); // Max 32 seconds
+        if((currentTime - lastSuccessTime) < backoffSeconds)
+        {
+            return; // Still in backoff period
+        }
+    }
+    
     string url = BridgeUrl + "/api/orders/pending?maxCount=10";
     string headers = "Content-Type: application/json\r\n";
     
@@ -85,18 +142,25 @@ void PollBridgeForOrders()
     int timeout = 5000; // 5 seconds timeout
     
     // Make HTTP GET request
+    requestsThisMinute++;
     int res = WebRequest("GET", url, headers, timeout, data, result, resultHeaders);
     
     if(res == -1)
     {
         int errorCode = GetLastError();
         if(errorCode != 0)
-            Print("WebRequest error: ", errorCode, ". Make sure URL is in allowed list.");
+        {
+            consecutiveFailures++;
+            Print("WebRequest error: ", errorCode, ". Make sure URL is in allowed list. Failures: ", consecutiveFailures);
+        }
         return;
     }
     
     if(res == 200)
     {
+        consecutiveFailures = 0; // Reset failure counter on success
+        lastSuccessTime = currentTime;
+        
         string response = CharArrayToString(result);
         
         if(StringLen(response) > 2) // More than just "[]"
@@ -110,7 +174,8 @@ void PollBridgeForOrders()
     }
     else
     {
-        Print("HTTP Error: ", res);
+        consecutiveFailures++;
+        Print("HTTP Error: ", res, ". Failures: ", consecutiveFailures);
     }
 }
 
@@ -143,11 +208,16 @@ void ProcessOrders(string jsonResponse)
     // Process each order
     for(int i = 0; i < json.Size(); i++)
     {
-        CJAVal order = json[i];
+        CJAVal* order = json.GetArrayItem(i);
+        if(order == NULL)
+        {
+            Print("Failed to get array item at index ", i);
+            continue;
+        }
         
-        string orderId = order["Id"].ToStr();
-        string eventType = order["EventType"].ToStr();
-        string symbol = order["Symbol"].ToStr();
+        string orderId = order.GetStringByKey("Id");
+        string eventType = order.GetStringByKey("EventType");
+        string symbol = order.GetStringByKey("Symbol");
         
         Print("Processing order: ", orderId, " - ", eventType, " for ", symbol);
         
@@ -178,25 +248,44 @@ void ProcessOrders(string jsonResponse)
             // Already handled by position opened
             success = true;
         }
+        else
+        {
+            Print("Unknown event type: ", eventType);
+            // Mark unknown event types as processed to avoid infinite loop
+            success = true;
+        }
         
-        // Mark order as processed
-        // Always mark as processed to avoid reprocessing, even on failure
-        // Failed orders should be handled through retry logic or manual intervention
-        MarkOrderAsProcessed(orderId);
+        // Only mark order as processed if successfully handled
+        if(success)
+        {
+            MarkOrderAsProcessed(orderId);
+        }
+        else
+        {
+            Print("Failed to process order ", orderId, " - will retry on next poll");
+            // Log failed request to file for manual intervention if needed
+            LogFailedRequest(orderId, eventType, "Processing failed", "");
+        }
     }
 }
 
 //+------------------------------------------------------------------+
 //| Process position opened event                                     |
 //+------------------------------------------------------------------+
-bool ProcessPositionOpened(CJAVal &order)
+bool ProcessPositionOpened(CJAVal* order)
 {
-    string symbol = order["Symbol"].ToStr();
-    string direction = order["Direction"].ToStr();
-    double volume = order["Volume"].ToDbl();
-    double stopLoss = order["StopLoss"].ToDbl();
-    double takeProfit = order["TakeProfit"].ToDbl();
-    string comment = order["Comment"].ToStr();
+    string sourceId = order.GetStringByKey("Id");
+    string symbol = order.GetStringByKey("Symbol");
+    string direction = order.GetStringByKey("Direction");
+    double volume = order.GetDoubleByKey("Volume");
+    double stopLoss = order.GetDoubleByKey("StopLoss");
+    double takeProfit = order.GetDoubleByKey("TakeProfit");
+    string originalComment = order.GetStringByKey("Comment");
+    
+    // Create comment with sourceId for tracking
+    string comment = "SRC:" + sourceId;
+    if(StringLen(originalComment) > 0)
+        comment = comment + "|" + originalComment;
     
     // Validate required fields
     if(StringLen(symbol) == 0)
@@ -280,12 +369,28 @@ bool ProcessPositionOpened(CJAVal &order)
     
     if(result)
     {
-        Print("Position opened: ", symbol, " ", direction, " ", volume, " lots");
+        ulong ticket = trade.ResultOrder();
+        Print("Position opened: ", symbol, " ", direction, " ", volume, " lots, ticket: ", ticket);
+        
+        // Store ticket mapping for future reference
+        if(ticket > 0)
+        {
+            AddTicketMapping(sourceId, ticket);
+        }
+        
         return true;
     }
     else
     {
-        Print("Failed to open position: ", trade.ResultRetcodeDescription());
+        uint resultCode = trade.ResultRetcode();
+        string errorDesc = trade.ResultRetcodeDescription();
+        Print("Failed to open position: Code=", resultCode, " Desc=", errorDesc);
+        
+        // Log detailed error information
+        LogFailedRequest(sourceId, "POSITION_OPENED", 
+                        "RetCode=" + IntegerToString(resultCode) + " " + errorDesc,
+                        "Symbol=" + symbol + " Dir=" + direction + " Vol=" + DoubleToString(volume));
+        
         return false;
     }
 }
@@ -293,45 +398,103 @@ bool ProcessPositionOpened(CJAVal &order)
 //+------------------------------------------------------------------+
 //| Process position closed event                                     |
 //+------------------------------------------------------------------+
-bool ProcessPositionClosed(CJAVal &order)
+bool ProcessPositionClosed(CJAVal* order)
 {
-    string symbol = order["Symbol"].ToStr();
-    long positionId = order["PositionId"].ToInt();
+    string sourceId = order.GetStringByKey("Id");
+    string symbol = order.GetStringByKey("Symbol");
+    long positionId = order.GetIntByKey("PositionId");
     
     symbol = NormalizeSymbol(symbol);
     
-    // Find and close position by symbol
+    // First try to find by sourceId in ticket_map
+    ulong ticket = GetTicketBySourceId(sourceId);
+    if(ticket > 0)
+    {
+        if(PositionSelectByTicket(ticket))
+        {
+            if(trade.PositionClose(ticket))
+            {
+                Print("Position closed by ticket: ", ticket);
+                RemoveTicketMapping(sourceId);
+                return true;
+            }
+            else
+            {
+                Print("Failed to close position by ticket: ", trade.ResultRetcodeDescription());
+                LogFailedRequest(sourceId, "POSITION_CLOSED", 
+                                trade.ResultRetcodeDescription(),
+                                "Ticket=" + IntegerToString(ticket));
+                return false;
+            }
+        }
+    }
+    
+    // Fallback: Find position by symbol (for backward compatibility)
+    // Note: This may not work correctly with multiple positions on same symbol
     if(PositionSelect(symbol))
     {
         if(trade.PositionClose(symbol))
         {
-            Print("Position closed: ", symbol);
+            Print("Position closed by symbol: ", symbol);
+            RemoveTicketMapping(sourceId);
             return true;
         }
         else
         {
             Print("Failed to close position: ", trade.ResultRetcodeDescription());
+            LogFailedRequest(sourceId, "POSITION_CLOSED", 
+                            trade.ResultRetcodeDescription(),
+                            "Symbol=" + symbol);
             return false;
         }
     }
     else
     {
-        Print("Position not found: ", symbol);
-        return false;
+        Print("Position not found: ", symbol, " (ticket: ", ticket, ")");
+        // Position might already be closed, consider this a success to avoid infinite retry
+        RemoveTicketMapping(sourceId);
+        return true;
     }
 }
 
 //+------------------------------------------------------------------+
 //| Process position modified event                                   |
 //+------------------------------------------------------------------+
-bool ProcessPositionModified(CJAVal &order)
+bool ProcessPositionModified(CJAVal* order)
 {
-    string symbol = order["Symbol"].ToStr();
-    double stopLoss = order["StopLoss"].ToDbl();
-    double takeProfit = order["TakeProfit"].ToDbl();
+    string sourceId = order.GetStringByKey("Id");
+    string symbol = order.GetStringByKey("Symbol");
+    double stopLoss = order.GetDoubleByKey("StopLoss");
+    double takeProfit = order.GetDoubleByKey("TakeProfit");
     
     symbol = NormalizeSymbol(symbol);
     
+    // Try to find by sourceId first
+    ulong ticket = GetTicketBySourceId(sourceId);
+    if(ticket > 0 && PositionSelectByTicket(ticket))
+    {
+        // Normalize SL/TP
+        if(stopLoss > 0)
+            stopLoss = NormalizeDouble(stopLoss, (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS));
+        if(takeProfit > 0)
+            takeProfit = NormalizeDouble(takeProfit, (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS));
+        
+        if(trade.PositionModify(ticket, stopLoss, takeProfit))
+        {
+            Print("Position modified by ticket: ", ticket, " SL=", stopLoss, " TP=", takeProfit);
+            return true;
+        }
+        else
+        {
+            Print("Failed to modify position: ", trade.ResultRetcodeDescription());
+            LogFailedRequest(sourceId, "POSITION_MODIFIED", 
+                            trade.ResultRetcodeDescription(),
+                            "Ticket=" + IntegerToString(ticket) + " SL=" + DoubleToString(stopLoss) + " TP=" + DoubleToString(takeProfit));
+            return false;
+        }
+    }
+    
+    // Fallback: Find by symbol
     if(PositionSelect(symbol))
     {
         // Normalize SL/TP
@@ -348,12 +511,18 @@ bool ProcessPositionModified(CJAVal &order)
         else
         {
             Print("Failed to modify position: ", trade.ResultRetcodeDescription());
+            LogFailedRequest(sourceId, "POSITION_MODIFIED", 
+                            trade.ResultRetcodeDescription(),
+                            "Symbol=" + symbol);
             return false;
         }
     }
     else
     {
         Print("Position not found: ", symbol);
+        LogFailedRequest(sourceId, "POSITION_MODIFIED", 
+                        "Position not found",
+                        "Symbol=" + symbol);
         return false;
     }
 }
@@ -361,16 +530,22 @@ bool ProcessPositionModified(CJAVal &order)
 //+------------------------------------------------------------------+
 //| Process pending order created event                               |
 //+------------------------------------------------------------------+
-bool ProcessPendingOrderCreated(CJAVal &order)
+bool ProcessPendingOrderCreated(CJAVal* order)
 {
-    string symbol = order["Symbol"].ToStr();
-    string orderTypeStr = order["OrderType"].ToStr();
-    string direction = order["Direction"].ToStr();
-    double volume = order["Volume"].ToDbl();
-    double targetPrice = order["TargetPrice"].ToDbl();
-    double stopLoss = order["StopLoss"].ToDbl();
-    double takeProfit = order["TakeProfit"].ToDbl();
-    string comment = order["Comment"].ToStr();
+    string sourceId = order.GetStringByKey("Id");
+    string symbol = order.GetStringByKey("Symbol");
+    string orderTypeStr = order.GetStringByKey("OrderType");
+    string direction = order.GetStringByKey("Direction");
+    double volume = order.GetDoubleByKey("Volume");
+    double targetPrice = order.GetDoubleByKey("TargetPrice");
+    double stopLoss = order.GetDoubleByKey("StopLoss");
+    double takeProfit = order.GetDoubleByKey("TakeProfit");
+    string originalComment = order.GetStringByKey("Comment");
+    
+    // Create comment with sourceId for tracking
+    string comment = "SRC:" + sourceId;
+    if(StringLen(originalComment) > 0)
+        comment = comment + "|" + originalComment;
     
     // Validate required fields
     if(StringLen(symbol) == 0 || StringLen(orderTypeStr) == 0 || StringLen(direction) == 0)
@@ -440,12 +615,23 @@ bool ProcessPendingOrderCreated(CJAVal &order)
     if(trade.OrderOpen(symbol, orderType, volume, 0, targetPrice, stopLoss, takeProfit, 
                        ORDER_TIME_GTC, 0, comment))
     {
-        Print("Pending order created: ", symbol, " ", orderTypeStr, " at ", targetPrice);
+        ulong ticket = trade.ResultOrder();
+        Print("Pending order created: ", symbol, " ", orderTypeStr, " at ", targetPrice, " ticket: ", ticket);
+        
+        // Store ticket mapping
+        if(ticket > 0)
+        {
+            AddTicketMapping(sourceId, ticket);
+        }
+        
         return true;
     }
     else
     {
         Print("Failed to create pending order: ", trade.ResultRetcodeDescription());
+        LogFailedRequest(sourceId, "PENDING_ORDER_CREATED", 
+                        trade.ResultRetcodeDescription(),
+                        "Symbol=" + symbol + " Type=" + orderTypeStr + " Price=" + DoubleToString(targetPrice));
         return false;
     }
 }
@@ -453,30 +639,58 @@ bool ProcessPendingOrderCreated(CJAVal &order)
 //+------------------------------------------------------------------+
 //| Process pending order cancelled event                             |
 //+------------------------------------------------------------------+
-bool ProcessPendingOrderCancelled(CJAVal &order)
+bool ProcessPendingOrderCancelled(CJAVal* order)
 {
-    string symbol = order["Symbol"].ToStr();
-    long orderId = order["OrderId"].ToInt();
+    string sourceId = order.GetStringByKey("Id");
+    string symbol = order.GetStringByKey("Symbol");
+    long orderId = order.GetIntByKey("OrderId");
     
     symbol = NormalizeSymbol(symbol);
     
-    // Find and cancel pending orders for this symbol
+    // Try to find by sourceId first
+    ulong ticket = GetTicketBySourceId(sourceId);
+    if(ticket > 0)
+    {
+        if(OrderSelect(ticket))
+        {
+            if(trade.OrderDelete(ticket))
+            {
+                Print("Pending order cancelled by ticket: ", ticket);
+                RemoveTicketMapping(sourceId);
+                return true;
+            }
+            else
+            {
+                Print("Failed to cancel pending order: ", trade.ResultRetcodeDescription());
+                LogFailedRequest(sourceId, "PENDING_ORDER_CANCELLED", 
+                                trade.ResultRetcodeDescription(),
+                                "Ticket=" + IntegerToString(ticket));
+                return false;
+            }
+        }
+    }
+    
+    // Fallback: Find and cancel pending orders for this symbol
     int total = OrdersTotal();
     for(int i = total - 1; i >= 0; i--)
     {
-        ulong ticket = OrderGetTicket(i);
-        if(OrderSelect(ticket))
+        ulong orderTicket = OrderGetTicket(i);
+        if(OrderSelect(orderTicket))
         {
             if(OrderGetString(ORDER_SYMBOL) == symbol)
             {
-                if(trade.OrderDelete(ticket))
+                if(trade.OrderDelete(orderTicket))
                 {
-                    Print("Pending order cancelled: ", symbol);
+                    Print("Pending order cancelled: ", symbol, " ticket: ", orderTicket);
+                    RemoveTicketMapping(sourceId);
                     return true;
                 }
                 else
                 {
                     Print("Failed to cancel pending order: ", trade.ResultRetcodeDescription());
+                    LogFailedRequest(sourceId, "PENDING_ORDER_CANCELLED", 
+                                    trade.ResultRetcodeDescription(),
+                                    "Symbol=" + symbol);
                     return false;
                 }
             }
@@ -484,7 +698,9 @@ bool ProcessPendingOrderCancelled(CJAVal &order)
     }
     
     Print("Pending order not found: ", symbol);
-    return false;
+    // Order might already be cancelled/filled, consider this success
+    RemoveTicketMapping(sourceId);
+    return true;
 }
 
 //+------------------------------------------------------------------+
@@ -543,5 +759,79 @@ string NormalizeSymbol(string symbol)
     
     Print("Symbol not found: ", symbol);
     return "";
+}
+
+//+------------------------------------------------------------------+
+//| Add sourceId to ticket mapping                                    |
+//+------------------------------------------------------------------+
+void AddTicketMapping(string sourceId, ulong ticket)
+{
+    int size = ArraySize(g_sourceIds);
+    ArrayResize(g_sourceIds, size + 1);
+    ArrayResize(g_tickets, size + 1);
+    g_sourceIds[size] = sourceId;
+    g_tickets[size] = ticket;
+    
+    Print("Ticket mapping added: ", sourceId, " -> ", ticket);
+}
+
+//+------------------------------------------------------------------+
+//| Get ticket by sourceId                                            |
+//+------------------------------------------------------------------+
+ulong GetTicketBySourceId(string sourceId)
+{
+    for(int i = 0; i < ArraySize(g_sourceIds); i++)
+    {
+        if(g_sourceIds[i] == sourceId)
+            return g_tickets[i];
+    }
+    return 0;
+}
+
+//+------------------------------------------------------------------+
+//| Remove ticket mapping                                             |
+//+------------------------------------------------------------------+
+void RemoveTicketMapping(string sourceId)
+{
+    for(int i = 0; i < ArraySize(g_sourceIds); i++)
+    {
+        if(g_sourceIds[i] == sourceId)
+        {
+            // Shift array elements
+            for(int j = i; j < ArraySize(g_sourceIds) - 1; j++)
+            {
+                g_sourceIds[j] = g_sourceIds[j + 1];
+                g_tickets[j] = g_tickets[j + 1];
+            }
+            ArrayResize(g_sourceIds, ArraySize(g_sourceIds) - 1);
+            ArrayResize(g_tickets, ArraySize(g_tickets) - 1);
+            break;
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Log failed request to file                                        |
+//+------------------------------------------------------------------+
+void LogFailedRequest(string orderId, string eventType, string reason, string jsonData)
+{
+    int fileHandle = FileOpen(g_failedRequestsFile, FILE_WRITE|FILE_READ|FILE_TXT|FILE_ANSI);
+    if(fileHandle != INVALID_HANDLE)
+    {
+        FileSeek(fileHandle, 0, SEEK_END);
+        string logEntry = TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + 
+                         " | OrderId: " + orderId + 
+                         " | EventType: " + eventType + 
+                         " | Reason: " + reason + 
+                         " | Data: " + StringSubstr(jsonData, 0, MathMin(200, StringLen(jsonData))) + 
+                         "\r\n";
+        FileWriteString(fileHandle, logEntry);
+        FileClose(fileHandle);
+        Print("Failed request logged to file: ", orderId);
+    }
+    else
+    {
+        Print("Failed to open log file: ", GetLastError());
+    }
 }
 //+------------------------------------------------------------------+
