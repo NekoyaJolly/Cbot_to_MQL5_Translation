@@ -8,7 +8,7 @@ The cBot has been enhanced with the following features that require testing:
 
 1. **File Persistence**: Single append file (`failed_queue.log`) for failed messages
 2. **File Rotation**: Automatic rotation when file size exceeds 100MB
-3. **Exponential Backoff**: Retry delays increase exponentially (1s, 2s, 4s, 8s, 16s, 32s, 60s max)
+3. **Exponential Backoff**: Retry delays increase exponentially (0s, 1s, 2s, 4s, 8s, 16s, 32s, 60s max)
 4. **LotSize Calculation**: Uses broker's LotSize instead of hardcoded 100,000
 5. **Queue Management**: Configurable max queue size (default 10,000)
 6. **API Key Validation**: Handles 401 responses and persists failed messages

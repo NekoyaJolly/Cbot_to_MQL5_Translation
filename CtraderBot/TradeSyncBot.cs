@@ -78,7 +78,16 @@ namespace CtraderBot
 
             // Start background retry timer (every 60 seconds)
             _retryTimer = new System.Threading.Timer(
-                async _ => await RetryFailedMessages(),
+                _ => {
+                    try
+                    {
+                        RetryFailedMessages().Wait();
+                    }
+                    catch (Exception ex)
+                    {
+                        Print("Error in retry timer: {0}", ex.Message);
+                    }
+                },
                 null,
                 TimeSpan.FromSeconds(10),
                 TimeSpan.FromSeconds(60)
@@ -169,7 +178,6 @@ namespace CtraderBot
                 SourceId = position.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 PositionId = position.Id,
                 Symbol = position.SymbolName ?? "",
-                ClosingPrice = position.Pips.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
                 NetProfit = position.NetProfit.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)
             };
 
@@ -458,7 +466,8 @@ namespace CtraderBot
             try
             {
                 var backupFiles = System.IO.Directory.GetFiles(_persistDir, "failed_queue_*.log.bak")
-                    .OrderByDescending(f => f)
+                    .Select(f => new System.IO.FileInfo(f))
+                    .OrderByDescending(f => f.CreationTimeUtc)
                     .ToArray();
                 
                 // Keep only the last 10 backup files
@@ -466,12 +475,12 @@ namespace CtraderBot
                 {
                     try
                     {
-                        System.IO.File.Delete(backupFiles[i]);
-                        Print("Deleted old backup: {0}", backupFiles[i]);
+                        backupFiles[i].Delete();
+                        Print("Deleted old backup: {0}", backupFiles[i].Name);
                     }
                     catch (Exception ex)
                     {
-                        Print("Error deleting backup {0}: {1}", backupFiles[i], ex.Message);
+                        Print("Error deleting backup {0}: {1}", backupFiles[i].Name, ex.Message);
                     }
                 }
             }
@@ -565,6 +574,8 @@ namespace CtraderBot
             {
                 try
                 {
+                    // Deserialize to object - using anonymous types for flexibility
+                    // The JSON structure is validated when creating the orderData
                     var orderData = Newtonsoft.Json.JsonConvert.DeserializeObject(json);
                     
                     // Calculate exponential backoff delay
