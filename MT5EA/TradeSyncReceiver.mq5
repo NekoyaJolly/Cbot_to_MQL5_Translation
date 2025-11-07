@@ -919,8 +919,13 @@ void SaveTicketMappingsToFile()
             FileWriteString(fileHandle, g_sourceIds[i], sourceIdLen);
             
             // Write ticket (ulong as long - MQL5 doesn't have FileWriteUlong)
-            // This is safe as long as ticket values don't exceed LONG_MAX
-            FileWriteLong(fileHandle, (long)g_tickets[i]);
+            // Validate ticket doesn't exceed LONG_MAX for safe storage
+            long ticketToWrite = (g_tickets[i] <= 9223372036854775807) ? (long)g_tickets[i] : 0;
+            if(ticketToWrite == 0 && g_tickets[i] > 0)
+            {
+                Print("Warning: Ticket ", g_tickets[i], " exceeds LONG_MAX, skipped in file");
+            }
+            FileWriteLong(fileHandle, ticketToWrite);
         }
         
         FileClose(fileHandle);
@@ -966,11 +971,19 @@ void LoadTicketMappingsFromFile()
                 }
                 
                 // Read ticket (stored as long, convert to ulong)
-                // This is safe as MT5 ticket numbers are typically positive
+                // Validate the long value is positive before converting to ulong
                 long ticketLong = FileReadLong(fileHandle);
-                ulong ticket = (ticketLong > 0) ? (ulong)ticketLong : 0;
+                ulong ticket = 0;
+                if(ticketLong > 0 && ticketLong <= 9223372036854775807)
+                {
+                    ticket = (ulong)ticketLong;
+                }
+                else if(ticketLong < 0)
+                {
+                    Print("Warning: Invalid negative ticket value ", ticketLong, " skipped");
+                }
                 
-                // Only add to arrays if sourceId is valid
+                // Only add to arrays if sourceId is valid and ticket is valid
                 if(StringLen(sourceId) > 0 && ticket > 0)
                 {
                     int size = ArraySize(g_sourceIds);
@@ -1055,9 +1068,9 @@ void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string sy
     string escapedLots = EscapeJsonString(lots);
     
     // Create JSON body with escaped strings
-    // Format ulong ticket as string (tickets are unsigned 64-bit)
-    string ticketStr = "";
-    StringConcatenate(ticketStr, slaveTicket); // Proper ulong to string conversion
+    // Format ulong ticket as string using StringConcatenate (proper ulong handling)
+    string ticketStr;
+    StringConcatenate(ticketStr, slaveTicket);
     
     string jsonBody = StringFormat(
         "{\"SourceTicket\":\"%s\",\"SlaveTicket\":\"%s\",\"Symbol\":\"%s\",\"Lots\":\"%s\"}",
