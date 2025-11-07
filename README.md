@@ -1,6 +1,7 @@
 # Cbot to MQL5 Translation / Ctraderから MT5への取引同期システム
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![E2E Tests](https://github.com/NekoyaJolly/Cbot_to_MQL5_Translation/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/NekoyaJolly/Cbot_to_MQL5_Translation/actions/workflows/e2e-tests.yml)
 
 リアルタイムでCtrader（cBot）の取引をMT5に同期するシステムです。
 
@@ -29,6 +30,8 @@ Ctrader (cBot/C#) → HTTP → Bridge Server (C#/.NET) → HTTP → MT5 (MQL5 EA
 ✅ 指値・逆指値注文 / Limit and Stop Orders  
 ✅ 低遅延（1秒ポーリング） / Low Latency (1s polling)  
 ✅ スレッドセーフなキュー管理 / Thread-safe Queue Management  
+✅ E2Eテストによる品質保証 / Quality assurance with E2E tests  
+✅ GitHub Actions による CI/CD / CI/CD with GitHub Actions  
 
 ## クイックスタート / Quick Start
 
@@ -62,6 +65,7 @@ Add `CtraderBot/TradeSyncBot.cs` to Ctrader Automate and start
 
 - [日本語ドキュメント](docs/README_JA.md)
 - [English Documentation](docs/README_EN.md)
+- [E2E Testing Guide](docs/E2E_TESTING.md)
 
 詳細なセットアップ手順、トラブルシューティング、API リファレンスは上記ドキュメントを参照してください。
 
@@ -69,9 +73,24 @@ For detailed setup instructions, troubleshooting, and API reference, please refe
 
 ## 必要な環境 / Requirements
 
-- .NET 8.0 SDK以上 / .NET 8.0 SDK or higher
+- .NET 9.0 SDK以上 / .NET 9.0 SDK or higher
 - Ctrader with cAlgo
 - MetaTrader 5
+
+## テスト / Testing
+
+```bash
+# ユニットテストの実行 / Run unit tests
+dotnet test Bridge.Tests/
+
+# E2Eテストの実行 / Run E2E tests
+dotnet test E2ETests/
+```
+
+詳細は [E2E Testing Guide](docs/E2E_TESTING.md) を参照してください。
+
+For details, see [E2E Testing Guide](docs/E2E_TESTING.md).
+
 
 ## ライセンス / License
 
