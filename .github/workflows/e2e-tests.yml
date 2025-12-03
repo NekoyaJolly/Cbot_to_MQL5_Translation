@@ -26,7 +26,7 @@ jobs:
         dotnet-version: '9.0.x'
         
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore TradeSyncBridge.sln
       
     - name: Build Bridge
       run: dotnet build Bridge/Bridge.csproj --configuration Release --no-restore
