@@ -444,10 +444,28 @@ namespace E2ETests
             Assert.Equal("Limit", receivedOrder.OrderType);
             _output.WriteLine($"MT5 EA received pending order: {receivedOrder.Id}");
 
-            // Step 3: Mark as processed
-            _output.WriteLine("\nStep 3: MT5 EA marks order as processed");
+            // Step 3: Log received order details
+            _output.WriteLine($"  - Symbol: {receivedOrder.Symbol}");
+            _output.WriteLine($"  - Direction: {receivedOrder.Direction}");
+            _output.WriteLine($"  - OrderType: {receivedOrder.OrderType}");
+            _output.WriteLine($"  - Volume: {receivedOrder.Volume}");
+            _output.WriteLine($"  - TargetPrice: {receivedOrder.TargetPrice}");
+            _output.WriteLine($"  - SL: {receivedOrder.StopLoss}");
+            _output.WriteLine($"  - TP: {receivedOrder.TakeProfit}");
+
+            // Step 4: Mark as processed
+            _output.WriteLine("\nStep 4: MT5 EA marks order as processed");
             var processResponse = await client.PostAsync($"/api/orders/{orderId}/processed", null);
             processResponse.EnsureSuccessStatusCode();
+
+            // Step 5: Verify order is no longer pending
+            _output.WriteLine("\nStep 5: Verify order is no longer pending");
+            var verifyResponse = await client.GetAsync("/api/orders/pending?maxCount=100");
+            verifyResponse.EnsureSuccessStatusCode();
+            var remainingOrders = await verifyResponse.Content.ReadFromJsonAsync<List<TradeOrder>>();
+            var stillPending = remainingOrders?.FirstOrDefault(o => o.Id == orderId);
+            Assert.Null(stillPending);
+            _output.WriteLine("✓ Order is no longer in pending queue");
 
             _output.WriteLine("\n✓ Pending Order Created E2E Test Completed");
         }
@@ -490,8 +508,18 @@ namespace E2ETests
             _output.WriteLine($"MT5 EA received cancellation: {receivedOrder.Id}");
 
             // Step 3: Mark as processed
+            _output.WriteLine("\nStep 3: MT5 EA marks order as processed");
             var processResponse = await client.PostAsync($"/api/orders/{queuedOrderId}/processed", null);
             processResponse.EnsureSuccessStatusCode();
+
+            // Step 4: Verify order is no longer pending
+            _output.WriteLine("\nStep 4: Verify order is no longer pending");
+            var verifyResponse = await client.GetAsync("/api/orders/pending?maxCount=100");
+            verifyResponse.EnsureSuccessStatusCode();
+            var remainingOrders = await verifyResponse.Content.ReadFromJsonAsync<List<TradeOrder>>();
+            var stillPending = remainingOrders?.FirstOrDefault(o => o.Id == queuedOrderId);
+            Assert.Null(stillPending);
+            _output.WriteLine("✓ Order is no longer in pending queue");
 
             _output.WriteLine("\n✓ Pending Order Cancelled E2E Test Completed");
         }
@@ -537,8 +565,18 @@ namespace E2ETests
             _output.WriteLine($"MT5 EA received filled notification: {receivedOrder.Id}");
 
             // Step 3: Mark as processed
+            _output.WriteLine("\nStep 3: MT5 EA marks order as processed");
             var processResponse = await client.PostAsync($"/api/orders/{queuedOrderId}/processed", null);
             processResponse.EnsureSuccessStatusCode();
+
+            // Step 4: Verify order is no longer pending
+            _output.WriteLine("\nStep 4: Verify order is no longer pending");
+            var verifyResponse = await client.GetAsync("/api/orders/pending?maxCount=100");
+            verifyResponse.EnsureSuccessStatusCode();
+            var remainingOrders = await verifyResponse.Content.ReadFromJsonAsync<List<TradeOrder>>();
+            var stillPending = remainingOrders?.FirstOrDefault(o => o.Id == queuedOrderId);
+            Assert.Null(stillPending);
+            _output.WriteLine("✓ Order is no longer in pending queue");
 
             _output.WriteLine("\n✓ Pending Order Filled E2E Test Completed");
         }
@@ -622,6 +660,21 @@ namespace E2ETests
             Assert.NotNull(pending3?.FirstOrDefault(o => o.Id == closeOrderId));
             await client.PostAsync($"/api/orders/{closeOrderId}/processed", null);
             _output.WriteLine($"Position closed: {closeOrderId}");
+
+            // Step 4: Verify all orders are no longer pending
+            _output.WriteLine("\nStep 4: Verify all orders are no longer pending");
+            var verifyResponse = await client.GetAsync("/api/orders/pending?maxCount=100");
+            verifyResponse.EnsureSuccessStatusCode();
+            var remainingOrders = await verifyResponse.Content.ReadFromJsonAsync<List<TradeOrder>>();
+            
+            var openStillPending = remainingOrders?.FirstOrDefault(o => o.Id == openOrderId);
+            var modifyStillPending = remainingOrders?.FirstOrDefault(o => o.Id == modifyOrderId);
+            var closeStillPending = remainingOrders?.FirstOrDefault(o => o.Id == closeOrderId);
+            
+            Assert.Null(openStillPending);
+            Assert.Null(modifyStillPending);
+            Assert.Null(closeStillPending);
+            _output.WriteLine("✓ All orders (open, modify, close) are no longer in pending queue");
 
             _output.WriteLine("\n✓ Full Trading Session E2E Test Completed");
         }
