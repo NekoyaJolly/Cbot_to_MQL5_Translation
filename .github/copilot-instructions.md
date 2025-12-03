@@ -1,8 +1,86 @@
 # Cbot_to_MQL5_Translation Copilot Instructions
 
 > このファイルは `Cbot_to_MQL5_Translation` リポジトリ向けの  
-> **AI コーディングエージェント共通ガイドライン** です。  
+> **AI コーディングエージェント共通ガイドライン（ベース Agent / オーケストレーター）** です。  
 > GitHub Copilot / Copilot Chat / Coding Agent 等、すべての自動化エージェントは本書に従ってください。
+
+---
+
+## マルチ Agent アーキテクチャ
+
+このプロジェクトは、タスクの種類に応じて**特化 Agent にハンドオフ**するマルチ Agent 構成を採用しています。
+
+### Agent 一覧
+
+| Agent | ファイル | 担当領域 |
+|-------|---------|----------|
+| **ベース Agent（本ファイル）** | `.github/copilot-instructions.md` | オーケストレーション、アーキテクチャ全体、Bridge サーバー |
+| **MQL5 Agent** | `.github/agents/mql5-agent.md` | MT5 EA、インジケーター、MQL5 言語固有の問題 |
+| **cBot Agent** | `.github/agents/cbot-agent.md` | cTrader cBot (C#)、Python Bot、Bridge との通信 |
+
+### ハンドオフ判断基準
+
+以下の条件に基づいてタスクを適切な Agent にハンドオフしてください：
+
+#### → MQL5 Agent へハンドオフ
+
+- MT5 EA (`MT5EA/`) の新規作成・修正
+- MQL5 言語固有のエラー解決
+- インジケーター開発
+- CTrade / CPositionInfo 等の標準ライブラリ活用
+- バックテスト・最適化の問題
+
+**ハンドオフ例**:
+```
+このタスクは MQL5 特化 Agent に委譲します。
+詳細は `.github/agents/mql5-agent.md` を参照してください。
+```
+
+#### → cBot Agent へハンドオフ
+
+- cTrader cBot (`CtraderBot/`) の新規作成・修正
+- cAlgo API の使用方法
+- Python での cTrader Open API 利用
+- cBot から Bridge への HTTP 通信実装
+- 取引イベントのフック方法
+
+**ハンドオフ例**:
+```
+このタスクは cBot 特化 Agent に委譲します。
+詳細は `.github/agents/cbot-agent.md` を参照してください。
+```
+
+#### ベース Agent が直接対応
+
+- Bridge サーバー (`Bridge/`) の開発・修正
+- プロジェクト全体のアーキテクチャ設計
+- 複数コンポーネントにまたがる変更
+- E2E テスト (`E2ETests/`) の開発
+- ドキュメント (`docs/`) の更新
+- CI/CD (`.github/workflows/`) の設定
+
+### MCP サーバーの利用
+
+このプロジェクトには MQL5 開発を支援する MCP サーバーが含まれています：
+
+```
+mcp-servers/
+├── mql5-server.js     # MCP サーバー本体
+└── tools/
+    ├── compile.js     # MetaEditor コンパイル連携
+    ├── validate.js    # EA/インジケーター構造検証
+    └── docs.js        # MQL5 ドキュメント取得
+```
+
+利用可能なツール：
+- `compile_mql5` - MetaEditor CLI でコンパイル
+- `validate_ea_structure` - EA の必須関数チェック
+- `validate_indicator_structure` - インジケーターの必須構造チェック
+- `get_mql5_docs` - MQL5 関数ドキュメント取得
+- `check_trading_logic` - トレードロジック検証
+- `analyze_indicator_buffers` - バッファ設定分析
+
+VS Code での設定は `.vscode/mcp.json` を参照してください。
 
 ---
 
