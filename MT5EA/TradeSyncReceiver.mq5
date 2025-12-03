@@ -9,7 +9,7 @@
 #property strict
 
 #include <Trade\Trade.mqh>
-#include <JAson.mqh>
+#include "JAson.mqh"
 
 //--- Input parameters
 input string BridgeUrl = "http://localhost:5000";  // Bridge Server URL
