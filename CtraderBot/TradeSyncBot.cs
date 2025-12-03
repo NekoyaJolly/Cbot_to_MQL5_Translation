@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using cAlgo.API;
 using cAlgo.API.Internals;
@@ -335,7 +336,7 @@ namespace CtraderBot
                     return false;
                 }
 
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(orderData);
+                var json = JsonSerializer.Serialize(orderData);
                 
                 // Validate JSON
                 if (string.IsNullOrEmpty(json))
@@ -344,6 +345,22 @@ namespace CtraderBot
                     return false;
                 }
 
+                return await TrySendHttpJson(json, orderData, retryCount);
+            }
+            catch (Exception ex)
+            {
+                _consecutiveFailures++;
+                _lastFailureTime = DateTime.UtcNow;
+                Print("Error sending order: {0}, Failures={1}/{2}, RetryCount={3}", 
+                      ex.Message, _consecutiveFailures, MAX_CONSECUTIVE_FAILURES, retryCount);
+                return false;
+            }
+        }
+
+        private async Task<bool> TrySendHttpJson(string json, object orderDataForLogging, int retryCount)
+        {
+            try
+            {
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync($"{BridgeUrl}/api/orders", content);
@@ -351,8 +368,27 @@ namespace CtraderBot
                 if (response.IsSuccessStatusCode)
                 {
                     _consecutiveFailures = 0; // Reset on success
-                    var eventType = orderData.GetType().GetProperty("EventType")?.GetValue(orderData);
-                    var sourceId = orderData.GetType().GetProperty("SourceId")?.GetValue(orderData);
+                    // Extract EventType and SourceId from JSON for logging
+                    string eventType = null;
+                    string sourceId = null;
+                    if (orderDataForLogging != null)
+                    {
+                        eventType = orderDataForLogging.GetType().GetProperty("EventType")?.GetValue(orderDataForLogging)?.ToString();
+                        sourceId = orderDataForLogging.GetType().GetProperty("SourceId")?.GetValue(orderDataForLogging)?.ToString();
+                    }
+                    if (eventType == null)
+                    {
+                        // Try to extract from JSON
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(json);
+                            if (doc.RootElement.TryGetProperty("EventType", out var et))
+                                eventType = et.GetString();
+                            if (doc.RootElement.TryGetProperty("SourceId", out var sid))
+                                sourceId = sid.GetString();
+                        }
+                        catch { }
+                    }
                     Print("Order sent successfully: EventType={0}, SourceId={1}, RetryCount={2}", 
                           eventType, sourceId, retryCount);
                     return true;
@@ -361,8 +397,25 @@ namespace CtraderBot
                 {
                     _consecutiveFailures++;
                     _lastFailureTime = DateTime.UtcNow;
-                    var eventType = orderData.GetType().GetProperty("EventType")?.GetValue(orderData);
-                    var sourceId = orderData.GetType().GetProperty("SourceId")?.GetValue(orderData);
+                    string eventType = null;
+                    string sourceId = null;
+                    if (orderDataForLogging != null)
+                    {
+                        eventType = orderDataForLogging.GetType().GetProperty("EventType")?.GetValue(orderDataForLogging)?.ToString();
+                        sourceId = orderDataForLogging.GetType().GetProperty("SourceId")?.GetValue(orderDataForLogging)?.ToString();
+                    }
+                    if (eventType == null)
+                    {
+                        try
+                        {
+                            using var doc = JsonDocument.Parse(json);
+                            if (doc.RootElement.TryGetProperty("EventType", out var et))
+                                eventType = et.GetString();
+                            if (doc.RootElement.TryGetProperty("SourceId", out var sid))
+                                sourceId = sid.GetString();
+                        }
+                        catch { }
+                    }
                     Print("Failed to send order: EventType={0}, SourceId={1}, Status={2}, Failures={3}/{4}, RetryCount={5}", 
                           eventType, sourceId, response.StatusCode, _consecutiveFailures, MAX_CONSECUTIVE_FAILURES, retryCount);
                     return false;
@@ -398,7 +451,7 @@ namespace CtraderBot
         {
             try
             {
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(orderData);
+                var json = JsonSerializer.Serialize(orderData);
                 _failedMessagesQueue.Enqueue(json);
                 
                 // Check queue size limit
@@ -542,13 +595,13 @@ namespace CtraderBot
                                     {
                                         try
                                         {
-                                            // Only deserialize for validation, don't store result
-                                            Newtonsoft.Json.JsonConvert.DeserializeObject<object>(line);
+                                            // Use JsonDocument.Parse for validation only
+                                            using (JsonDocument.Parse(line)) { }
                                             _failedMessagesQueue.Enqueue(line);
                                             messageCount++;
                                             validLineCount++;
                                         }
-                                        catch (Newtonsoft.Json.JsonException ex)
+                                        catch (JsonException ex)
                                         {
                                             Print("Warning: Skipping corrupted JSON line in persist file: {0}", ex.Message);
                                         }
@@ -617,12 +670,13 @@ namespace CtraderBot
                                 {
                                     try
                                     {
-                                        Newtonsoft.Json.JsonConvert.DeserializeObject<object>(line);
+                                        // Use JsonDocument.Parse for validation only
+                                        using (JsonDocument.Parse(line)) { }
                                         _failedMessagesQueue.Enqueue(line);
                                         messageCount++;
                                         validLineCount++;
                                     }
-                                    catch (Newtonsoft.Json.JsonException)
+                                    catch (JsonException)
                                     {
                                         // Skip corrupted lines silently for old files
                                     }
@@ -667,10 +721,6 @@ namespace CtraderBot
             {
                 try
                 {
-                    // Deserialize to object - using anonymous types for flexibility
-                    // The JSON structure is validated when creating the orderData
-                    var orderData = Newtonsoft.Json.JsonConvert.DeserializeObject(json);
-                    
                     // Calculate exponential backoff delay
                     var backoffDelay = CalculateBackoffDelay(retryCount);
                     if (backoffDelay > TimeSpan.Zero)
@@ -678,7 +728,8 @@ namespace CtraderBot
                         await Task.Delay(backoffDelay);
                     }
                     
-                    var success = await TrySendHttp(orderData, retryCount + 1);
+                    // Send the JSON string directly without re-serialization
+                    var success = await TrySendHttpJson(json, null, retryCount + 1);
                     
                     if (success)
                     {
@@ -704,6 +755,7 @@ namespace CtraderBot
             {
                 Print("Retry cycle completed: {0} messages sent, {1} remaining in queue", 
                       retryCount, _failedMessagesQueue.Count);
+            }
             }
         }
 
