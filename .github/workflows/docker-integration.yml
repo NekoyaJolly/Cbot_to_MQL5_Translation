@@ -11,6 +11,8 @@ jobs:
   docker-integration:
     name: Docker Integration Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     services:
       # Redis for optional caching tests
