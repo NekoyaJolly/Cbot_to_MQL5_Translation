@@ -61,3 +61,7 @@ Bridge/logs/
 
 # cBot persist directory
 CtraderBot/persist/
+
+# MCP Server
+mcp-servers/node_modules/
+mcp-servers/package-lock.json

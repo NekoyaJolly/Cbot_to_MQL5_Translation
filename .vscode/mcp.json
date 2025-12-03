@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "mql5": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp-servers/mql5-server.js"],
+      "env": {}
+    }
+  }
+}

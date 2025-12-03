@@ -1,0 +1,28 @@
+{
+  "name": "mql5-mcp-server",
+  "version": "1.0.0",
+  "description": "MQL5/MT5 開発に特化した MCP (Model Context Protocol) サーバー",
+  "main": "mql5-server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node mql5-server.js",
+    "test": "echo \"No tests implemented yet\" && exit 0"
+  },
+  "keywords": [
+    "mql5",
+    "mt5",
+    "metatrader",
+    "mcp",
+    "model-context-protocol",
+    "trading",
+    "ea"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
