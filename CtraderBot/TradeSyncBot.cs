@@ -756,7 +756,6 @@ namespace CtraderBot
                 Print("Retry cycle completed: {0} messages sent, {1} remaining in queue", 
                       retryCount, _failedMessagesQueue.Count);
             }
-            }
         }
 
         private TimeSpan CalculateBackoffDelay(int retryCount)

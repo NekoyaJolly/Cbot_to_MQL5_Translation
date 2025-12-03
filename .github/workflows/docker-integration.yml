@@ -1,0 +1,239 @@
+name: Integration Tests with Docker
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  docker-integration:
+    name: Docker Integration Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    services:
+      # Redis for optional caching tests
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Build Bridge Docker image
+      run: |
+        cd Bridge
+        cat > Dockerfile << 'EOF'
+        FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+        WORKDIR /src
+        COPY . .
+        RUN dotnet restore
+        RUN dotnet publish -c Release -o /app
+        
+        FROM mcr.microsoft.com/dotnet/aspnet:8.0
+        WORKDIR /app
+        COPY --from=build /app .
+        ENV ASPNETCORE_URLS=http://+:5000
+        EXPOSE 5000
+        ENTRYPOINT ["dotnet", "Bridge.dll"]
+        EOF
+        docker build -t bridge-server .
+    
+    - name: Run Bridge server in Docker
+      run: |
+        docker run -d \
+          --name bridge \
+          -p 5000:5000 \
+          -e "Bridge__ListenUrl=http://0.0.0.0:5000" \
+          bridge-server
+        
+        # Wait for container to be healthy
+        echo "Waiting for Bridge server to start..."
+        for i in {1..30}; do
+          if curl -s http://localhost:5000/api/health | grep -q "Healthy"; then
+            echo "Bridge server is healthy!"
+            break
+          fi
+          echo "Attempt $i: Waiting..."
+          sleep 2
+        done
+    
+    - name: Verify Bridge health
+      run: |
+        curl -f http://localhost:5000/api/health
+        echo ""
+        curl -f http://localhost:5000/api/status
+        echo ""
+    
+    - name: Run integration tests against Docker container
+      run: |
+        # Create a simple integration test script
+        cat > /tmp/test_bridge.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        BRIDGE_URL="http://localhost:5000"
+        
+        echo "=== Testing Bridge API ==="
+        
+        # Test 1: Health check
+        echo "Test 1: Health check"
+        HEALTH=$(curl -s "$BRIDGE_URL/api/health")
+        echo "Response: $HEALTH"
+        if echo "$HEALTH" | grep -q "Healthy"; then
+          echo "✓ Health check passed"
+        else
+          echo "✗ Health check failed"
+          exit 1
+        fi
+        
+        # Test 2: Send order
+        echo ""
+        echo "Test 2: Send order"
+        ORDER_RESPONSE=$(curl -s -X POST "$BRIDGE_URL/api/orders" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "sourceId": "test-order-1",
+            "eventType": "POSITION_OPENED",
+            "symbol": "EURUSD",
+            "direction": "Buy",
+            "volume": "0.01",
+            "entryPrice": "1.1000",
+            "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+          }')
+        echo "Response: $ORDER_RESPONSE"
+        if echo "$ORDER_RESPONSE" | grep -q "orderId"; then
+          echo "✓ Order creation passed"
+        else
+          echo "✗ Order creation failed"
+          exit 1
+        fi
+        
+        # Extract order ID
+        ORDER_ID=$(echo "$ORDER_RESPONSE" | grep -o '"orderId":"[^"]*"' | cut -d'"' -f4)
+        echo "Order ID: $ORDER_ID"
+        
+        # Test 3: Get pending orders
+        echo ""
+        echo "Test 3: Get pending orders"
+        PENDING=$(curl -s "$BRIDGE_URL/api/orders/pending?maxCount=10")
+        echo "Response: $PENDING"
+        if echo "$PENDING" | grep -q "$ORDER_ID"; then
+          echo "✓ Pending orders check passed"
+        else
+          echo "✗ Pending orders check failed"
+          exit 1
+        fi
+        
+        # Test 4: Mark as processed
+        echo ""
+        echo "Test 4: Mark as processed"
+        PROCESS_RESPONSE=$(curl -s -X POST "$BRIDGE_URL/api/orders/$ORDER_ID/processed")
+        echo "Response: $PROCESS_RESPONSE"
+        if echo "$PROCESS_RESPONSE" | grep -q "Processed"; then
+          echo "✓ Mark processed passed"
+        else
+          echo "✗ Mark processed failed"
+          exit 1
+        fi
+        
+        # Test 5: Verify no longer pending
+        echo ""
+        echo "Test 5: Verify no longer pending"
+        PENDING_AFTER=$(curl -s "$BRIDGE_URL/api/orders/pending?maxCount=10")
+        echo "Response: $PENDING_AFTER"
+        if echo "$PENDING_AFTER" | grep -q "$ORDER_ID"; then
+          echo "✗ Order still in pending queue"
+          exit 1
+        else
+          echo "✓ Order removed from pending queue"
+        fi
+        
+        # Test 6: Statistics
+        echo ""
+        echo "Test 6: Statistics"
+        STATS=$(curl -s "$BRIDGE_URL/api/statistics")
+        echo "Response: $STATS"
+        if echo "$STATS" | grep -q "TotalOrders"; then
+          echo "✓ Statistics check passed"
+        else
+          echo "✗ Statistics check failed"
+          exit 1
+        fi
+        
+        # Test 7: Metrics endpoint
+        echo ""
+        echo "Test 7: Prometheus metrics"
+        METRICS=$(curl -s "$BRIDGE_URL/metrics")
+        if echo "$METRICS" | grep -q "bridge_orders_received_total"; then
+          echo "✓ Metrics endpoint passed"
+        else
+          echo "✗ Metrics endpoint failed"
+          exit 1
+        fi
+        
+        echo ""
+        echo "=== All integration tests passed! ==="
+        EOF
+        chmod +x /tmp/test_bridge.sh
+        /tmp/test_bridge.sh
+    
+    - name: Run load test (basic)
+      run: |
+        echo "=== Running basic load test ==="
+        for i in {1..50}; do
+          curl -s -X POST "http://localhost:5000/api/orders" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"sourceId\": \"load-test-$i\",
+              \"eventType\": \"POSITION_OPENED\",
+              \"symbol\": \"EURUSD\",
+              \"direction\": \"Buy\",
+              \"volume\": \"0.01\",
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+            }" > /dev/null &
+        done
+        wait
+        
+        echo "Sent 50 orders concurrently"
+        
+        # Check statistics
+        STATS=$(curl -s http://localhost:5000/api/statistics)
+        echo "Statistics after load test: $STATS"
+        
+        # Verify orders were received
+        TOTAL=$(echo "$STATS" | grep -o '"TotalOrders":[0-9]*' | cut -d':' -f2)
+        echo "Total orders: $TOTAL"
+        if [ "$TOTAL" -ge 50 ]; then
+          echo "✓ Load test passed"
+        else
+          echo "✗ Load test failed - expected at least 50 orders"
+          exit 1
+        fi
+    
+    - name: Collect Docker logs
+      if: always()
+      run: |
+        echo "=== Bridge container logs ==="
+        docker logs bridge 2>&1 | tail -100
+    
+    - name: Stop containers
+      if: always()
+      run: |
+        docker stop bridge || true
+        docker rm bridge || true
