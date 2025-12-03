@@ -400,6 +400,232 @@ namespace E2ETests
             _output.WriteLine("\n✓ Health Check E2E Test Completed");
         }
 
+        [Fact]
+        public async Task E2E_PendingOrderCreated_CompleteFlow_ShouldSucceed()
+        {
+            // This test simulates pending order creation flow
+
+            // Arrange
+            var client = _factory.CreateClient();
+            var sourceId = Guid.NewGuid().ToString();
+
+            // Step 1: Send PENDING_ORDER_CREATED event
+            _output.WriteLine("Step 1: Cbot sends PENDING_ORDER_CREATED to Bridge");
+            var order = new TradeOrder
+            {
+                SourceId = sourceId,
+                EventType = "PENDING_ORDER_CREATED",
+                Symbol = "EURUSD",
+                Direction = "Buy",
+                OrderType = "Limit",
+                Volume = "0.05",
+                TargetPrice = "1.0800",
+                StopLoss = "1.0750",
+                TakeProfit = "1.0900",
+                Comment = "E2E Pending Order Test",
+                Timestamp = DateTime.UtcNow
+            };
+
+            var addResponse = await client.PostAsJsonAsync("/api/orders", order);
+            addResponse.EnsureSuccessStatusCode();
+            var orderId = ExtractOrderId(await addResponse.Content.ReadAsStringAsync());
+            Assert.NotNull(orderId);
+            _output.WriteLine($"Pending order queued with ID: {orderId}");
+
+            // Step 2: MT5 EA polls and receives the order
+            _output.WriteLine("\nStep 2: MT5 EA polls for pending orders");
+            var pendingResponse = await client.GetAsync("/api/orders/pending?maxCount=10");
+            pendingResponse.EnsureSuccessStatusCode();
+            var pendingOrders = await pendingResponse.Content.ReadFromJsonAsync<List<TradeOrder>>();
+
+            var receivedOrder = pendingOrders?.FirstOrDefault(o => o.Id == orderId);
+            Assert.NotNull(receivedOrder);
+            Assert.Equal("PENDING_ORDER_CREATED", receivedOrder.EventType);
+            Assert.Equal("Limit", receivedOrder.OrderType);
+            _output.WriteLine($"MT5 EA received pending order: {receivedOrder.Id}");
+
+            // Step 3: Mark as processed
+            _output.WriteLine("\nStep 3: MT5 EA marks order as processed");
+            var processResponse = await client.PostAsync($"/api/orders/{orderId}/processed", null);
+            processResponse.EnsureSuccessStatusCode();
+
+            _output.WriteLine("\n✓ Pending Order Created E2E Test Completed");
+        }
+
+        [Fact]
+        public async Task E2E_PendingOrderCancelled_CompleteFlow_ShouldSucceed()
+        {
+            // This test simulates pending order cancellation flow
+
+            // Arrange
+            var client = _factory.CreateClient();
+            var sourceId = Guid.NewGuid().ToString();
+            var orderId = 999L;
+
+            // Step 1: Send PENDING_ORDER_CANCELLED event
+            _output.WriteLine("Step 1: Cbot sends PENDING_ORDER_CANCELLED to Bridge");
+            var order = new TradeOrder
+            {
+                SourceId = sourceId,
+                EventType = "PENDING_ORDER_CANCELLED",
+                OrderId = orderId,
+                Symbol = "GBPUSD",
+                Timestamp = DateTime.UtcNow
+            };
+
+            var addResponse = await client.PostAsJsonAsync("/api/orders", order);
+            addResponse.EnsureSuccessStatusCode();
+            var queuedOrderId = ExtractOrderId(await addResponse.Content.ReadAsStringAsync());
+            Assert.NotNull(queuedOrderId);
+
+            // Step 2: MT5 EA polls and receives the order
+            _output.WriteLine("\nStep 2: MT5 EA polls for pending orders");
+            var pendingResponse = await client.GetAsync("/api/orders/pending?maxCount=10");
+            pendingResponse.EnsureSuccessStatusCode();
+            var pendingOrders = await pendingResponse.Content.ReadFromJsonAsync<List<TradeOrder>>();
+
+            var receivedOrder = pendingOrders?.FirstOrDefault(o => o.Id == queuedOrderId);
+            Assert.NotNull(receivedOrder);
+            Assert.Equal("PENDING_ORDER_CANCELLED", receivedOrder.EventType);
+            _output.WriteLine($"MT5 EA received cancellation: {receivedOrder.Id}");
+
+            // Step 3: Mark as processed
+            var processResponse = await client.PostAsync($"/api/orders/{queuedOrderId}/processed", null);
+            processResponse.EnsureSuccessStatusCode();
+
+            _output.WriteLine("\n✓ Pending Order Cancelled E2E Test Completed");
+        }
+
+        [Fact]
+        public async Task E2E_PendingOrderFilled_CompleteFlow_ShouldSucceed()
+        {
+            // This test simulates pending order filled flow
+
+            // Arrange
+            var client = _factory.CreateClient();
+            var sourceId = Guid.NewGuid().ToString();
+            var orderId = 888L;
+            var positionId = 777L;
+
+            // Step 1: Send PENDING_ORDER_FILLED event
+            _output.WriteLine("Step 1: Cbot sends PENDING_ORDER_FILLED to Bridge");
+            var order = new TradeOrder
+            {
+                SourceId = sourceId,
+                EventType = "PENDING_ORDER_FILLED",
+                OrderId = orderId,
+                PositionId = positionId,
+                Symbol = "USDJPY",
+                Timestamp = DateTime.UtcNow
+            };
+
+            var addResponse = await client.PostAsJsonAsync("/api/orders", order);
+            addResponse.EnsureSuccessStatusCode();
+            var queuedOrderId = ExtractOrderId(await addResponse.Content.ReadAsStringAsync());
+            Assert.NotNull(queuedOrderId);
+
+            // Step 2: MT5 EA polls and receives the order
+            _output.WriteLine("\nStep 2: MT5 EA polls for pending orders");
+            var pendingResponse = await client.GetAsync("/api/orders/pending?maxCount=10");
+            pendingResponse.EnsureSuccessStatusCode();
+            var pendingOrders = await pendingResponse.Content.ReadFromJsonAsync<List<TradeOrder>>();
+
+            var receivedOrder = pendingOrders?.FirstOrDefault(o => o.Id == queuedOrderId);
+            Assert.NotNull(receivedOrder);
+            Assert.Equal("PENDING_ORDER_FILLED", receivedOrder.EventType);
+            Assert.Equal(positionId, receivedOrder.PositionId);
+            _output.WriteLine($"MT5 EA received filled notification: {receivedOrder.Id}");
+
+            // Step 3: Mark as processed
+            var processResponse = await client.PostAsync($"/api/orders/{queuedOrderId}/processed", null);
+            processResponse.EnsureSuccessStatusCode();
+
+            _output.WriteLine("\n✓ Pending Order Filled E2E Test Completed");
+        }
+
+        [Fact]
+        public async Task E2E_FullTradingSession_ShouldSucceed()
+        {
+            // This test simulates a full trading session: open, modify, close
+            
+            // Arrange
+            var client = _factory.CreateClient();
+            var sourceId = Guid.NewGuid().ToString();
+
+            // Step 1: Open position
+            _output.WriteLine("Step 1: Open position");
+            var openOrder = new TradeOrder
+            {
+                SourceId = sourceId,
+                EventType = "POSITION_OPENED",
+                Symbol = "EURUSD",
+                Direction = "Buy",
+                Volume = "0.1",
+                EntryPrice = "1.1000",
+                StopLoss = "1.0950",
+                TakeProfit = "1.1050",
+                Timestamp = DateTime.UtcNow
+            };
+
+            var openResponse = await client.PostAsJsonAsync("/api/orders", openOrder);
+            openResponse.EnsureSuccessStatusCode();
+            var openOrderId = ExtractOrderId(await openResponse.Content.ReadAsStringAsync());
+            
+            // Poll and process open order
+            var pendingResponse1 = await client.GetAsync("/api/orders/pending?maxCount=10");
+            var pending1 = await pendingResponse1.Content.ReadFromJsonAsync<List<TradeOrder>>();
+            Assert.NotNull(pending1?.FirstOrDefault(o => o.Id == openOrderId));
+            await client.PostAsync($"/api/orders/{openOrderId}/processed", null);
+            _output.WriteLine($"Position opened: {openOrderId}");
+
+            // Step 2: Modify position (change SL/TP)
+            _output.WriteLine("\nStep 2: Modify position");
+            var modifyOrder = new TradeOrder
+            {
+                SourceId = $"{sourceId}-modify",
+                EventType = "POSITION_MODIFIED",
+                Symbol = "EURUSD",
+                StopLoss = "1.0960",
+                TakeProfit = "1.1080",
+                Timestamp = DateTime.UtcNow.AddMinutes(5)
+            };
+
+            var modifyResponse = await client.PostAsJsonAsync("/api/orders", modifyOrder);
+            modifyResponse.EnsureSuccessStatusCode();
+            var modifyOrderId = ExtractOrderId(await modifyResponse.Content.ReadAsStringAsync());
+            
+            // Poll and process modify order
+            var pendingResponse2 = await client.GetAsync("/api/orders/pending?maxCount=10");
+            var pending2 = await pendingResponse2.Content.ReadFromJsonAsync<List<TradeOrder>>();
+            Assert.NotNull(pending2?.FirstOrDefault(o => o.Id == modifyOrderId));
+            await client.PostAsync($"/api/orders/{modifyOrderId}/processed", null);
+            _output.WriteLine($"Position modified: {modifyOrderId}");
+
+            // Step 3: Close position
+            _output.WriteLine("\nStep 3: Close position");
+            var closeOrder = new TradeOrder
+            {
+                SourceId = $"{sourceId}-close",
+                EventType = "POSITION_CLOSED",
+                Symbol = "EURUSD",
+                NetProfit = "50.00",
+                Timestamp = DateTime.UtcNow.AddMinutes(30)
+            };
+
+            var closeResponse = await client.PostAsJsonAsync("/api/orders", closeOrder);
+            closeResponse.EnsureSuccessStatusCode();
+            var closeOrderId = ExtractOrderId(await closeResponse.Content.ReadAsStringAsync());
+            
+            // Poll and process close order
+            var pendingResponse3 = await client.GetAsync("/api/orders/pending?maxCount=10");
+            var pending3 = await pendingResponse3.Content.ReadFromJsonAsync<List<TradeOrder>>();
+            Assert.NotNull(pending3?.FirstOrDefault(o => o.Id == closeOrderId));
+            await client.PostAsync($"/api/orders/{closeOrderId}/processed", null);
+            _output.WriteLine($"Position closed: {closeOrderId}");
+
+            _output.WriteLine("\n✓ Full Trading Session E2E Test Completed");
+        }
+
         private string? ExtractOrderId(string jsonResponse)
         {
             var startIdx = jsonResponse.IndexOf("orderId\":\"") + 10;

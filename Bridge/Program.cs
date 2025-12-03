@@ -564,10 +564,23 @@ namespace Bridge
                     _queueManager.CleanupOldOrders(maxAge);
                     await Task.Delay(interval, stoppingToken);
                 }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    // Normal shutdown, exit gracefully
+                    _logger.LogInformation("CleanupService stopping due to cancellation request");
+                    break;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error in cleanup service");
-                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                 }
             }
         }
@@ -609,10 +622,23 @@ namespace Bridge
                     
                     await Task.Delay(checkInterval, stoppingToken);
                 }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    // Normal shutdown, exit gracefully
+                    _logger.LogInformation("RetryService stopping due to cancellation request");
+                    break;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error in retry service");
-                    await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                 }
             }
         }
