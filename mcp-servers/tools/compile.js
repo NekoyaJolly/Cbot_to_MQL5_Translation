@@ -8,9 +8,16 @@ import path from "path";
 
 /**
  * MetaEditor CLI のデフォルトパス
- * 環境に応じて設定を変更可能
+ * 環境変数 METAEDITOR_PATH で上書き可能
+ * 
+ * 設定例（Windows PowerShell）:
+ *   $env:METAEDITOR_PATH = "C:\Program Files\MetaTrader 5\metaeditor64.exe"
+ * 
+ * 設定例（環境変数ファイル .env）:
+ *   METAEDITOR_PATH=C:\Program Files\MetaTrader 5\metaeditor64.exe
  */
 const DEFAULT_METAEDITOR_PATH =
+  process.env.METAEDITOR_PATH ||
   "C:\\Program Files\\MetaTrader 5\\metaeditor64.exe";
 
 /**

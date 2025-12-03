@@ -18,6 +18,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import fs from "fs/promises";
 
 import { compileMql5, formatCompileResult } from "./tools/compile.js";
 import {
@@ -323,11 +324,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 /**
  * ファイルからコンテンツを読み取る
+ * @param {string} filePath - ファイルパス
+ * @returns {Promise<string|null>} ファイル内容、または null
  */
 async function readFileContent(filePath) {
   if (!filePath) return null;
-  const fs = await import("fs/promises");
-  return fs.readFile(filePath, "utf-8");
+  try {
+    return await fs.readFile(filePath, "utf-8");
+  } catch (error) {
+    throw new Error(`ファイルを読み込めません: ${filePath} - ${error.message}`);
+  }
 }
 
 /**
