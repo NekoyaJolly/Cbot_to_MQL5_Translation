@@ -8,11 +8,8 @@
 #property version   "1.00"
 #property strict
 
-#ifdef __INTELLISENSE__
-#include "stubs\TradeStub.mqh"
-#else
+// MQL5 標準トレードライブラリ
 #include <Trade\Trade.mqh>
-#endif
 #include "JAson.mqh"
 
 //--- Input parameters
@@ -1165,7 +1162,7 @@ string EscapeJsonString(string str)
         else if(ch == '\t')
             result += "\\t";
         else
-            result += CharToString(ch);
+            result += ShortToString(ch);  // Unicode対応: CharToStringはucharのみ対応
     }
     
     return result;
@@ -1225,9 +1222,8 @@ void SendTicketMappingToBridge(string sourceTicket, ulong slaveTicket, string sy
     string escapedLots = EscapeJsonString(lots);
     
     // Create JSON body with escaped strings
-    // Format ulong ticket as string using StringConcatenate (proper ulong handling)
-    string ticketStr;
-    StringConcatenate(ticketStr, slaveTicket);
+    // Format ulong ticket as string
+    string ticketStr = IntegerToString(slaveTicket);
     
     string jsonBody = StringFormat(
         "{\"SourceTicket\":\"%s\",\"SlaveTicket\":\"%s\",\"Symbol\":\"%s\",\"Lots\":\"%s\"}",

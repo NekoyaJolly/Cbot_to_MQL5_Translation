@@ -7,6 +7,17 @@
 #property strict
 
 //+------------------------------------------------------------------+
+//| Helper function: Trim whitespace from both sides of string       |
+//| MQL5's StringTrimLeft/Right modify in-place, so we need a wrapper|
+//+------------------------------------------------------------------+
+string TrimString(string str)
+{
+    StringTrimLeft(str);
+    StringTrimRight(str);
+    return str;
+}
+
+//+------------------------------------------------------------------+
 //| JSON Value class                                                  |
 //+------------------------------------------------------------------+
 class CJAVal
@@ -52,7 +63,7 @@ public:
     bool Deserialize(string json)
     {
         Clear();
-        json = StringTrimLeft(StringTrimRight(json));
+        json = TrimString(json);
         
         if(StringLen(json) == 0)
             return false;
@@ -81,7 +92,7 @@ public:
         
         // Remove brackets
         json = StringSubstr(json, 1, StringLen(json) - 2);
-        json = StringTrimLeft(StringTrimRight(json));
+        json = TrimString(json);
         
         if(StringLen(json) == 0)
             return true; // Empty array
@@ -116,7 +127,7 @@ public:
         
         // Remove braces
         json = StringSubstr(json, 1, StringLen(json) - 2);
-        json = StringTrimLeft(StringTrimRight(json));
+        json = TrimString(json);
         
         if(StringLen(json) == 0)
             return true; // Empty object
@@ -130,8 +141,8 @@ public:
             int colonPos = StringFind(pairs[i], ":");
             if(colonPos > 0)
             {
-                string key = StringTrimLeft(StringTrimRight(StringSubstr(pairs[i], 0, colonPos)));
-                string value = StringTrimLeft(StringTrimRight(StringSubstr(pairs[i], colonPos + 1)));
+                string key = TrimString(StringSubstr(pairs[i], 0, colonPos));
+                string value = TrimString(StringSubstr(pairs[i], colonPos + 1));
                 
                 // Remove quotes from key
                 if(StringGetCharacter(key, 0) == '"')
@@ -227,7 +238,7 @@ public:
                 else if(ch == ',' && depth == 0)
                 {
                     string item = StringSubstr(json, start, i - start);
-                    item = StringTrimLeft(StringTrimRight(item));
+                    item = TrimString(item);
                     
                     int size = ArraySize(result);
                     ArrayResize(result, size + 1);
@@ -242,7 +253,7 @@ public:
         if(start < StringLen(json))
         {
             string item = StringSubstr(json, start);
-            item = StringTrimLeft(StringTrimRight(item));
+            item = TrimString(item);
             
             int size = ArraySize(result);
             ArrayResize(result, size + 1);
@@ -403,12 +414,14 @@ public:
                 }
                 else if(nextCh == 'b')
                 {
-                    result += "\b";
+                    // Note: MQL5では \b はサポートされていないため、スペースに置換
+                    result += " ";
                     i++;
                 }
                 else if(nextCh == 'f')
                 {
-                    result += "\f";
+                    // Note: MQL5では \f はサポートされていないため、スペースに置換
+                    result += " ";
                     i++;
                 }
                 else if(nextCh == 'u' && i + 5 <= len)
@@ -432,7 +445,7 @@ public:
                            (hexCh >= 'a' && hexCh <= 'f') || 
                            (hexCh >= 'A' && hexCh <= 'F'))
                         {
-                            hexStr += CharToString(hexCh);
+                            hexStr += ShortToString(hexCh);
                         }
                         else
                         {
@@ -460,16 +473,16 @@ public:
                             codepoint = codepoint * 16 + digitValue;
                         }
                         
-                        // Add the character (MQL5 uses ushort for characters)
+                        // Add the character (MQL5 uses ushort for Unicode characters)
                         if(codepoint > 0 && codepoint <= 65535)
                         {
-                            result += CharToString((ushort)codepoint);
+                            result += ShortToString((ushort)codepoint);
                         }
                         else
                         {
                             // Invalid codepoint, keep original sequence
-                            result += CharToString(ch);
-                            result += CharToString(nextCh);
+                            result += ShortToString(ch);
+                            result += ShortToString(nextCh);
                             result += hexStr;
                         }
                         
@@ -478,18 +491,18 @@ public:
                     else
                     {
                         // Invalid hex sequence, keep backslash
-                        result += CharToString(ch);
+                        result += ShortToString(ch);
                     }
                 }
                 else
                 {
                     // Unknown escape, keep as-is
-                    result += CharToString(ch);
+                    result += ShortToString(ch);
                 }
             }
             else
             {
-                result += CharToString(ch);
+                result += ShortToString(ch);
             }
         }
         
