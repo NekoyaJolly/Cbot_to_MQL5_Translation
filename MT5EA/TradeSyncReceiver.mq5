@@ -13,7 +13,7 @@
 #include "JAson.mqh"
 
 //--- Input parameters
-input string BridgeUrl = "http://localhost:5000";  // Bridge Server URL
+input string BridgeUrl = "http://127.0.0.1:5000";  // Bridge Server URL
 input string BridgeApiKey = "";                      // Bridge API Key (X-API-KEY header)
 input int    PollInterval = 1000;                   // Poll interval in milliseconds
 input bool   EnableSync = true;                     // Enable synchronization
@@ -45,7 +45,7 @@ string g_ticketMappingFile = "TradeSyncReceiver_TicketMap.dat";
 // Rate limiting
 #define MAX_REQUESTS_PER_MINUTE 60
 int requestsThisMinute = 0;
-datetime lastMinuteReset;
+ulong lastMinuteResetTick = 0;  // Using GetTickCount64() for reliable timing
 
 // Sanity check limits for file persistence
 #define MAX_TICKET_MAPPINGS 10000  // Maximum number of mappings to load from file
@@ -64,7 +64,7 @@ int OnInit()
     // IMPORTANT: WebRequest Configuration Required
     // Go to Tools -> Options -> Expert Advisors
     // Add the Bridge URL to the "Allow WebRequest for listed URL" list
-    // Example: http://localhost:5000
+    // Example: http://127.0.0.1:5000
     Print("NOTICE: Ensure Bridge URL is in WebRequest allowed list (Tools->Options->Expert Advisors)");
     
     // Configure trade object
@@ -75,7 +75,7 @@ int OnInit()
     
     lastPollTime = TimeCurrent();
     lastSuccessTime = TimeCurrent();
-    lastMinuteReset = TimeCurrent();
+    lastMinuteResetTick = GetTickCount64();
     consecutiveFailures = 0;
     requestsThisMinute = 0;
     
@@ -86,6 +86,11 @@ int OnInit()
     // Load ticket mappings from file
     LoadTicketMappingsFromFile();
     
+    // Set timer for polling (more reliable than OnTick for slow timeframes)
+    int timerSeconds = MathMax(1, PollInterval / 1000);
+    EventSetTimer(timerSeconds);
+    Print("Timer set for polling every ", timerSeconds, " second(s)");
+    
     return(INIT_SUCCEEDED);
 }
 
@@ -94,6 +99,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
+    EventKillTimer();
     Print("TradeSyncReceiver EA stopped. Reason: ", reason);
 }
 
@@ -102,15 +108,17 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
+    // OnTick is kept for compatibility but main polling is done via OnTimer
+    // This helps on slow timeframes like H1 where ticks are infrequent
+}
+
+//+------------------------------------------------------------------+
+//| Timer function - called every PollInterval                        |
+//+------------------------------------------------------------------+
+void OnTimer()
+{
     if(!EnableSync)
         return;
-    
-    // Poll at specified interval
-    datetime currentTime = TimeCurrent();
-    if((currentTime - lastPollTime) * 1000 < PollInterval)
-        return;
-    
-    lastPollTime = currentTime;
     
     // Fetch pending orders from bridge
     PollBridgeForOrders();
@@ -121,28 +129,42 @@ void OnTick()
 //+------------------------------------------------------------------+
 void PollBridgeForOrders()
 {
-    // Reset rate limit counter every minute
-    datetime currentTime = TimeCurrent();
-    if((currentTime - lastMinuteReset) >= 60)
+    // Reset rate limit counter every minute (using GetTickCount64 for reliable timing)
+    ulong currentTick = GetTickCount64();
+    ulong elapsedMs = currentTick - lastMinuteResetTick;
+    
+    if(elapsedMs >= 60000 || lastMinuteResetTick == 0)  // 60 seconds in milliseconds
     {
+        if(requestsThisMinute >= MAX_REQUESTS_PER_MINUTE)
+        {
+            Print("Rate limit reset. Resuming polling. (requests this minute: ", requestsThisMinute, ")");
+        }
         requestsThisMinute = 0;
-        lastMinuteReset = currentTime;
+        lastMinuteResetTick = currentTick;
     }
     
     // Rate limiting: don't exceed MAX_REQUESTS_PER_MINUTE
     if(requestsThisMinute >= MAX_REQUESTS_PER_MINUTE)
     {
-        if(requestsThisMinute == MAX_REQUESTS_PER_MINUTE)
+        // Only print warning once
+        static bool warningPrinted = false;
+        if(!warningPrinted)
         {
-            Print("Rate limit reached (", MAX_REQUESTS_PER_MINUTE, " requests/minute). Throttling requests.");
-            requestsThisMinute++; // Increment to avoid printing this message repeatedly
+            ulong remainingMs = 60000 - elapsedMs;
+            Print("Rate limit reached (", MAX_REQUESTS_PER_MINUTE, " requests/minute). Will resume in ~", 
+                  remainingMs / 1000, " seconds.");
+            warningPrinted = true;
         }
+        // Reset warning flag when we reset the counter
+        if(elapsedMs >= 60000)
+            warningPrinted = false;
         return;
     }
     
     // Exponential backoff after consecutive failures
     if(consecutiveFailures > 0)
     {
+        datetime currentTime = TimeCurrent();
         int backoffSeconds = (int)MathPow(2, MathMin(consecutiveFailures, 5)); // Max 32 seconds
         if((currentTime - lastSuccessTime) < backoffSeconds)
         {
@@ -178,18 +200,23 @@ void PollBridgeForOrders()
     if(res >= 200 && res < 300)
     {
         consecutiveFailures = 0; // Reset failure counter on success
-        lastSuccessTime = currentTime;
+        lastSuccessTime = TimeCurrent();
         
         string response = CharArrayToString(result);
         
-        if(StringLen(response) > 2) // More than just "[]"
+        // Only log and process if there are actual orders (not empty array "[]")
+        if(StringLen(response) > 2)
         {
+            // Debug: Log the raw response only when there's data
+            Print("Raw response (", StringLen(response), " chars): ", StringSubstr(response, 0, MathMin(500, StringLen(response))));
+            
             ProcessOrders(response);
             requestCount++;
             
             if(requestCount % 100 == 0)
                 Print("Processed ", requestCount, " requests");
         }
+        // Empty response "[]" - no pending orders, silently continue
     }
     else
     {
@@ -499,7 +526,7 @@ bool ProcessPositionClosed(CJAVal* order)
 //+------------------------------------------------------------------+
 bool ProcessPositionModified(CJAVal* order)
 {
-    string sourceId = order.GetStringByKey("Id");
+    string sourceId = order.GetStringByKey("SourceId");  // Fixed: Use SourceId instead of Id
     string symbol = order.GetStringByKey("Symbol");
     double stopLoss = order.GetDoubleByKey("StopLoss");
     double takeProfit = order.GetDoubleByKey("TakeProfit");

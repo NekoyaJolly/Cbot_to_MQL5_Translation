@@ -1,0 +1,654 @@
+[2025-12-04 18:57:45 INF] Database initialized at Data Source=bridge.db
+[18:57:45 INF] Database initialized at Data Source=bridge.db
+[2025-12-04 18:57:45 INF] CleanupService started: MaxAge=01:00:00, Interval=00:10:00
+[2025-12-04 18:57:45 INF] RetryService started: CheckInterval=00:00:30, StaleTimeout=00:05:00
+[18:57:45 INF] CleanupService started: MaxAge=01:00:00, Interval=00:10:00
+[18:57:45 INF] RetryService started: CheckInterval=00:00:30, StaleTimeout=00:05:00
+[2025-12-04 19:01:37 INF] Order added: Id=a5bd58fd-ad30-4ff9-a987-fe31cc3daa86, SourceId=TEST-003, EventType=POSITION_OPENED
+[19:01:37 INF] Order added: Id=a5bd58fd-ad30-4ff9-a987-fe31cc3daa86, SourceId=TEST-003, EventType=POSITION_OPENED
+[2025-12-04 19:01:37 INF] Order received and queued: a5bd58fd-ad30-4ff9-a987-fe31cc3daa86
+[19:01:37 INF] Order received and queued: a5bd58fd-ad30-4ff9-a987-fe31cc3daa86
+[2025-12-04 19:01:38 INF] Retrieved 1 pending orders for consumer consumer-9c25ba8f4
+[19:01:38 INF] Retrieved 1 pending orders for consumer consumer-9c25ba8f4
+[2025-12-04 19:02:59 INF] Order added: Id=3449bdb0-f6ca-4acd-8eb1-fc49bfbd8018, SourceId=TEST-004, EventType=POSITION_OPENED
+[19:02:59 INF] Order added: Id=3449bdb0-f6ca-4acd-8eb1-fc49bfbd8018, SourceId=TEST-004, EventType=POSITION_OPENED
+[2025-12-04 19:02:59 INF] Order received and queued: 3449bdb0-f6ca-4acd-8eb1-fc49bfbd8018
+[19:02:59 INF] Order received and queued: 3449bdb0-f6ca-4acd-8eb1-fc49bfbd8018
+[2025-12-04 19:06:46 WRN] Released 1 stale processing orders
+[19:06:46 WRN] Released 1 stale processing orders
+[2025-12-04 19:07:35 INF] Retrieved 2 pending orders for consumer consumer-92a422c2b
+[19:07:35 INF] Retrieved 2 pending orders for consumer consumer-92a422c2b
+[2025-12-04 19:07:35 INF] Order marked as processed: Id=3449bdb0-f6ca-4acd-8eb1-fc49bfbd8018
+[19:07:35 INF] Order marked as processed: Id=3449bdb0-f6ca-4acd-8eb1-fc49bfbd8018
+[2025-12-04 19:07:35 INF] Order 3449bdb0-f6ca-4acd-8eb1-fc49bfbd8018 marked as processed
+[19:07:35 INF] Order 3449bdb0-f6ca-4acd-8eb1-fc49bfbd8018 marked as processed
+[2025-12-04 19:07:35 INF] Order marked as processed: Id=a5bd58fd-ad30-4ff9-a987-fe31cc3daa86
+[19:07:35 INF] Order marked as processed: Id=a5bd58fd-ad30-4ff9-a987-fe31cc3daa86
+[2025-12-04 19:07:35 INF] Order a5bd58fd-ad30-4ff9-a987-fe31cc3daa86 marked as processed
+[19:07:35 INF] Order a5bd58fd-ad30-4ff9-a987-fe31cc3daa86 marked as processed
+[2025-12-04 19:16:36 INF] Order added: Id=ec2d835b-f0a2-4834-9a84-e63a0647b46a, SourceId=TEST-USDJPY-001, EventType=POSITION_OPENED
+[19:16:36 INF] Order added: Id=ec2d835b-f0a2-4834-9a84-e63a0647b46a, SourceId=TEST-USDJPY-001, EventType=POSITION_OPENED
+[2025-12-04 19:16:36 INF] Order received and queued: ec2d835b-f0a2-4834-9a84-e63a0647b46a
+[19:16:36 INF] Order received and queued: ec2d835b-f0a2-4834-9a84-e63a0647b46a
+[2025-12-04 19:16:37 INF] Retrieved 1 pending orders for consumer consumer-562ab3dc2
+[19:16:37 INF] Retrieved 1 pending orders for consumer consumer-562ab3dc2
+[2025-12-04 19:21:46 WRN] Released 1 stale processing orders
+[19:21:46 WRN] Released 1 stale processing orders
+[2025-12-04 19:22:17 INF] Retrieved 1 pending orders for consumer consumer-a3fc1559c
+[19:22:17 INF] Retrieved 1 pending orders for consumer consumer-a3fc1559c
+[2025-12-04 19:23:50 INF] Order added: Id=c1273468-750c-4a84-9f7c-77fbef722f6e, SourceId=TEST-USDJPY-002, EventType=POSITION_OPENED
+[19:23:50 INF] Order added: Id=c1273468-750c-4a84-9f7c-77fbef722f6e, SourceId=TEST-USDJPY-002, EventType=POSITION_OPENED
+[2025-12-04 19:23:50 INF] Order received and queued: c1273468-750c-4a84-9f7c-77fbef722f6e
+[19:23:50 INF] Order received and queued: c1273468-750c-4a84-9f7c-77fbef722f6e
+[2025-12-04 19:23:52 INF] Retrieved 1 pending orders for consumer consumer-be02fbdf7
+[19:23:52 INF] Retrieved 1 pending orders for consumer consumer-be02fbdf7
+[2025-12-04 19:27:46 WRN] Released 1 stale processing orders
+[19:27:46 WRN] Released 1 stale processing orders
+[2025-12-04 19:28:20 INF] Retrieved 1 pending orders for consumer consumer-c5baeccdc
+[19:28:20 INF] Retrieved 1 pending orders for consumer consumer-c5baeccdc
+[2025-12-04 19:29:16 WRN] Released 1 stale processing orders
+[19:29:16 WRN] Released 1 stale processing orders
+[2025-12-04 19:29:50 INF] Retrieved 1 pending orders for consumer consumer-4ab0b70dc
+[19:29:50 INF] Retrieved 1 pending orders for consumer consumer-4ab0b70dc
+[2025-12-04 19:33:46 WRN] Released 1 stale processing orders
+[19:33:46 WRN] Released 1 stale processing orders
+[2025-12-04 19:34:20 INF] Retrieved 1 pending orders for consumer consumer-8f0179135
+[19:34:20 INF] Retrieved 1 pending orders for consumer consumer-8f0179135
+[2025-12-04 19:34:46 ERR] Marked 1 orders as failed due to max retry count
+[19:34:46 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:34:50 INF] Retrieved 1 pending orders for consumer consumer-74d0d79da
+[19:34:50 INF] Retrieved 1 pending orders for consumer consumer-74d0d79da
+[2025-12-04 19:35:16 WRN] Released 1 stale processing orders
+[19:35:16 WRN] Released 1 stale processing orders
+[2025-12-04 19:35:17 ERR] Marked 1 orders as failed due to max retry count
+[19:35:17 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:35:20 INF] Retrieved 1 pending orders for consumer consumer-ba672edfa
+[19:35:20 INF] Retrieved 1 pending orders for consumer consumer-ba672edfa
+[2025-12-04 19:35:47 ERR] Marked 1 orders as failed due to max retry count
+[19:35:47 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:35:50 INF] Retrieved 2 pending orders for consumer consumer-605ee05c7
+[19:35:50 INF] Retrieved 2 pending orders for consumer consumer-605ee05c7
+[2025-12-04 19:36:17 ERR] Marked 1 orders as failed due to max retry count
+[19:36:17 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:36:20 INF] Retrieved 1 pending orders for consumer consumer-a8ada6298
+[19:36:20 INF] Retrieved 1 pending orders for consumer consumer-a8ada6298
+[2025-12-04 19:36:47 ERR] Marked 1 orders as failed due to max retry count
+[19:36:47 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:36:50 INF] Retrieved 1 pending orders for consumer consumer-0fbe82960
+[19:36:50 INF] Retrieved 1 pending orders for consumer consumer-0fbe82960
+[2025-12-04 19:37:17 ERR] Marked 1 orders as failed due to max retry count
+[19:37:17 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:37:20 INF] Retrieved 1 pending orders for consumer consumer-1d52c9fbd
+[19:37:20 INF] Retrieved 1 pending orders for consumer consumer-1d52c9fbd
+[2025-12-04 19:37:47 ERR] Marked 1 orders as failed due to max retry count
+[19:37:47 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:37:50 INF] Retrieved 1 pending orders for consumer consumer-21511031b
+[19:37:50 INF] Retrieved 1 pending orders for consumer consumer-21511031b
+[2025-12-04 19:38:17 ERR] Marked 1 orders as failed due to max retry count
+[19:38:17 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:38:20 INF] Retrieved 1 pending orders for consumer consumer-52334056c
+[19:38:20 INF] Retrieved 1 pending orders for consumer consumer-52334056c
+[2025-12-04 19:38:47 ERR] Marked 1 orders as failed due to max retry count
+[19:38:47 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:38:50 INF] Retrieved 1 pending orders for consumer consumer-98e106188
+[19:38:50 INF] Retrieved 1 pending orders for consumer consumer-98e106188
+[2025-12-04 19:39:17 ERR] Marked 1 orders as failed due to max retry count
+[19:39:17 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:39:20 INF] Retrieved 1 pending orders for consumer consumer-5f7ea3047
+[19:39:20 INF] Retrieved 1 pending orders for consumer consumer-5f7ea3047
+[2025-12-04 19:39:47 ERR] Marked 1 orders as failed due to max retry count
+[19:39:47 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:39:50 INF] Retrieved 1 pending orders for consumer consumer-257724efc
+[19:39:50 INF] Retrieved 1 pending orders for consumer consumer-257724efc
+[2025-12-04 19:40:17 ERR] Marked 1 orders as failed due to max retry count
+[19:40:17 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:40:20 INF] Retrieved 1 pending orders for consumer consumer-f53cf77e2
+[19:40:20 INF] Retrieved 1 pending orders for consumer consumer-f53cf77e2
+[2025-12-04 19:40:38 INF] Order added: Id=b19d3501-cf09-4c0a-89ee-249ca5333124, SourceId=10765552, EventType=POSITION_OPENED
+[19:40:38 INF] Order added: Id=b19d3501-cf09-4c0a-89ee-249ca5333124, SourceId=10765552, EventType=POSITION_OPENED
+[2025-12-04 19:40:38 INF] Order received and queued: b19d3501-cf09-4c0a-89ee-249ca5333124
+[19:40:38 INF] Order received and queued: b19d3501-cf09-4c0a-89ee-249ca5333124
+[2025-12-04 19:40:40 INF] Retrieved 1 pending orders for consumer consumer-4e2f37976
+[19:40:40 INF] Retrieved 1 pending orders for consumer consumer-4e2f37976
+[2025-12-04 19:40:47 ERR] Marked 1 orders as failed due to max retry count
+[19:40:47 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:40:50 INF] Retrieved 1 pending orders for consumer consumer-844ab09cc
+[19:40:50 INF] Retrieved 1 pending orders for consumer consumer-844ab09cc
+[2025-12-04 19:41:17 WRN] Released 1 stale processing orders
+[19:41:17 WRN] Released 1 stale processing orders
+[2025-12-04 19:41:17 ERR] Marked 1 orders as failed due to max retry count
+[19:41:17 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:41:20 INF] Retrieved 1 pending orders for consumer consumer-f6fe8d629
+[19:41:20 INF] Retrieved 1 pending orders for consumer consumer-f6fe8d629
+[2025-12-04 19:41:47 ERR] Marked 1 orders as failed due to max retry count
+[19:41:47 ERR] Marked 1 orders as failed due to max retry count
+[2025-12-04 19:41:50 INF] Retrieved 2 pending orders for consumer consumer-cdf4ebb1b
+[19:41:50 INF] Retrieved 2 pending orders for consumer consumer-cdf4ebb1b
+[2025-12-04 19:42:17 ERR] Marked 2 orders as failed due to max retry count
+[19:42:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:42:20 INF] Retrieved 2 pending orders for consumer consumer-d928b45ba
+[19:42:20 INF] Retrieved 2 pending orders for consumer consumer-d928b45ba
+[2025-12-04 19:42:47 ERR] Marked 2 orders as failed due to max retry count
+[19:42:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:42:50 INF] Retrieved 2 pending orders for consumer consumer-d9ac4f061
+[19:42:50 INF] Retrieved 2 pending orders for consumer consumer-d9ac4f061
+[2025-12-04 19:43:17 ERR] Marked 2 orders as failed due to max retry count
+[19:43:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:43:20 INF] Retrieved 2 pending orders for consumer consumer-21648f3cc
+[19:43:20 INF] Retrieved 2 pending orders for consumer consumer-21648f3cc
+[2025-12-04 19:43:47 ERR] Marked 2 orders as failed due to max retry count
+[19:43:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:43:50 INF] Retrieved 2 pending orders for consumer consumer-33e8bc6a6
+[19:43:50 INF] Retrieved 2 pending orders for consumer consumer-33e8bc6a6
+[2025-12-04 19:44:17 ERR] Marked 2 orders as failed due to max retry count
+[19:44:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:44:20 INF] Retrieved 2 pending orders for consumer consumer-06c309e5e
+[19:44:20 INF] Retrieved 2 pending orders for consumer consumer-06c309e5e
+[2025-12-04 19:44:47 ERR] Marked 2 orders as failed due to max retry count
+[19:44:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:44:50 INF] Retrieved 2 pending orders for consumer consumer-989510488
+[19:44:50 INF] Retrieved 2 pending orders for consumer consumer-989510488
+[2025-12-04 19:45:17 ERR] Marked 2 orders as failed due to max retry count
+[19:45:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:45:20 INF] Retrieved 2 pending orders for consumer consumer-66e59d1cb
+[19:45:20 INF] Retrieved 2 pending orders for consumer consumer-66e59d1cb
+[2025-12-04 19:45:47 WRN] Released 1 stale processing orders
+[19:45:47 WRN] Released 1 stale processing orders
+[2025-12-04 19:45:47 ERR] Marked 2 orders as failed due to max retry count
+[19:45:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:45:50 INF] Retrieved 2 pending orders for consumer consumer-b219c1c66
+[19:45:50 INF] Retrieved 2 pending orders for consumer consumer-b219c1c66
+[2025-12-04 19:46:17 ERR] Marked 2 orders as failed due to max retry count
+[19:46:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:46:20 INF] Retrieved 3 pending orders for consumer consumer-c16a32e2e
+[19:46:20 INF] Retrieved 3 pending orders for consumer consumer-c16a32e2e
+[2025-12-04 19:46:47 ERR] Marked 2 orders as failed due to max retry count
+[19:46:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:46:50 INF] Retrieved 2 pending orders for consumer consumer-cfd94a77f
+[19:46:50 INF] Retrieved 2 pending orders for consumer consumer-cfd94a77f
+[2025-12-04 19:47:17 ERR] Marked 2 orders as failed due to max retry count
+[19:47:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:47:20 INF] Retrieved 2 pending orders for consumer consumer-49ee7289b
+[19:47:20 INF] Retrieved 2 pending orders for consumer consumer-49ee7289b
+[2025-12-04 19:47:47 ERR] Marked 2 orders as failed due to max retry count
+[19:47:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:47:50 INF] Retrieved 2 pending orders for consumer consumer-eb4bb55b8
+[19:47:50 INF] Retrieved 2 pending orders for consumer consumer-eb4bb55b8
+[2025-12-04 19:48:17 ERR] Marked 2 orders as failed due to max retry count
+[19:48:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:48:20 INF] Retrieved 2 pending orders for consumer consumer-d262af35b
+[19:48:20 INF] Retrieved 2 pending orders for consumer consumer-d262af35b
+[2025-12-04 19:48:47 ERR] Marked 2 orders as failed due to max retry count
+[19:48:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:48:50 INF] Retrieved 2 pending orders for consumer consumer-36633cd36
+[19:48:50 INF] Retrieved 2 pending orders for consumer consumer-36633cd36
+[2025-12-04 19:49:17 ERR] Marked 2 orders as failed due to max retry count
+[19:49:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:49:20 INF] Retrieved 2 pending orders for consumer consumer-9297453f2
+[19:49:20 INF] Retrieved 2 pending orders for consumer consumer-9297453f2
+[2025-12-04 19:49:47 ERR] Marked 2 orders as failed due to max retry count
+[19:49:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:49:50 INF] Retrieved 2 pending orders for consumer consumer-7c618978d
+[19:49:50 INF] Retrieved 2 pending orders for consumer consumer-7c618978d
+[2025-12-04 19:50:17 ERR] Marked 2 orders as failed due to max retry count
+[19:50:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:50:20 INF] Retrieved 2 pending orders for consumer consumer-341af0451
+[19:50:20 INF] Retrieved 2 pending orders for consumer consumer-341af0451
+[2025-12-04 19:50:47 ERR] Marked 2 orders as failed due to max retry count
+[19:50:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:50:50 INF] Retrieved 2 pending orders for consumer consumer-9289b0668
+[19:50:50 INF] Retrieved 2 pending orders for consumer consumer-9289b0668
+[2025-12-04 19:51:17 ERR] Marked 2 orders as failed due to max retry count
+[19:51:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:51:20 INF] Retrieved 2 pending orders for consumer consumer-095b26457
+[19:51:20 INF] Retrieved 2 pending orders for consumer consumer-095b26457
+[2025-12-04 19:51:47 WRN] Released 1 stale processing orders
+[19:51:47 WRN] Released 1 stale processing orders
+[2025-12-04 19:51:47 ERR] Marked 2 orders as failed due to max retry count
+[19:51:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:51:50 INF] Retrieved 2 pending orders for consumer consumer-2854d1a95
+[19:51:50 INF] Retrieved 2 pending orders for consumer consumer-2854d1a95
+[2025-12-04 19:52:17 ERR] Marked 2 orders as failed due to max retry count
+[19:52:17 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:52:20 INF] Retrieved 3 pending orders for consumer consumer-2332bb259
+[19:52:20 INF] Retrieved 3 pending orders for consumer consumer-2332bb259
+[2025-12-04 19:52:47 ERR] Marked 2 orders as failed due to max retry count
+[19:52:47 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:52:50 INF] Retrieved 2 pending orders for consumer consumer-12ba16f30
+[19:52:50 INF] Retrieved 2 pending orders for consumer consumer-12ba16f30
+[2025-12-04 19:53:18 ERR] Marked 2 orders as failed due to max retry count
+[19:53:18 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:53:19 INF] Retrieved 2 pending orders for consumer consumer-65c1c2dd2
+[19:53:19 INF] Retrieved 2 pending orders for consumer consumer-65c1c2dd2
+[2025-12-04 19:53:48 ERR] Marked 2 orders as failed due to max retry count
+[19:53:48 ERR] Marked 2 orders as failed due to max retry count
+[2025-12-04 19:57:48 WRN] Released 1 stale processing orders
+[19:57:48 WRN] Released 1 stale processing orders
+[2025-12-04 20:04:51 INF] Order added: Id=11106dfd-15ac-4b36-9000-e76ead07472f, SourceId=10765552, EventType=POSITION_CLOSED
+[20:04:51 INF] Order added: Id=11106dfd-15ac-4b36-9000-e76ead07472f, SourceId=10765552, EventType=POSITION_CLOSED
+[2025-12-04 20:04:51 INF] Order received and queued: 11106dfd-15ac-4b36-9000-e76ead07472f
+[20:04:51 INF] Order received and queued: 11106dfd-15ac-4b36-9000-e76ead07472f
+[2025-12-04 20:05:36 INF] Retrieved 4 pending orders for consumer consumer-057ad6f0b
+[20:05:36 INF] Retrieved 4 pending orders for consumer consumer-057ad6f0b
+[2025-12-04 20:05:36 INF] Order marked as processed: Id=11106dfd-15ac-4b36-9000-e76ead07472f
+[20:05:36 INF] Order marked as processed: Id=11106dfd-15ac-4b36-9000-e76ead07472f
+[2025-12-04 20:05:36 INF] Order 11106dfd-15ac-4b36-9000-e76ead07472f marked as processed
+[20:05:36 INF] Order 11106dfd-15ac-4b36-9000-e76ead07472f marked as processed
+[2025-12-04 20:05:48 ERR] Marked 3 orders as failed due to max retry count
+[20:05:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:05:51 INF] Retrieved 3 pending orders for consumer consumer-06de3ed14
+[20:05:51 INF] Retrieved 3 pending orders for consumer consumer-06de3ed14
+[2025-12-04 20:05:58 INF] Order added: Id=65979471-fdef-415f-88a0-e2f012e657d5, SourceId=10765581, EventType=POSITION_OPENED
+[20:05:58 INF] Order added: Id=65979471-fdef-415f-88a0-e2f012e657d5, SourceId=10765581, EventType=POSITION_OPENED
+[2025-12-04 20:05:58 INF] Order received and queued: 65979471-fdef-415f-88a0-e2f012e657d5
+[20:05:58 INF] Order received and queued: 65979471-fdef-415f-88a0-e2f012e657d5
+[2025-12-04 20:06:01 INF] Retrieved 1 pending orders for consumer consumer-89d7699b5
+[20:06:01 INF] Retrieved 1 pending orders for consumer consumer-89d7699b5
+[2025-12-04 20:06:01 INF] Ticket mapping added: Source=65979471-fdef-415f-88a0-e2f012e657d5, Slave=24102987
+[20:06:01 INF] Ticket mapping added: Source=65979471-fdef-415f-88a0-e2f012e657d5, Slave=24102987
+[2025-12-04 20:06:01 INF] Order marked as processed: Id=65979471-fdef-415f-88a0-e2f012e657d5
+[20:06:01 INF] Order marked as processed: Id=65979471-fdef-415f-88a0-e2f012e657d5
+[2025-12-04 20:06:01 INF] Order 65979471-fdef-415f-88a0-e2f012e657d5 marked as processed
+[20:06:01 INF] Order 65979471-fdef-415f-88a0-e2f012e657d5 marked as processed
+[2025-12-04 20:06:18 ERR] Marked 3 orders as failed due to max retry count
+[20:06:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:06:21 INF] Retrieved 3 pending orders for consumer consumer-e9c64227e
+[20:06:21 INF] Retrieved 3 pending orders for consumer consumer-e9c64227e
+[2025-12-04 20:06:48 ERR] Marked 3 orders as failed due to max retry count
+[20:06:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:06:51 INF] Retrieved 3 pending orders for consumer consumer-64175bf79
+[20:06:51 INF] Retrieved 3 pending orders for consumer consumer-64175bf79
+[2025-12-04 20:07:18 ERR] Marked 3 orders as failed due to max retry count
+[20:07:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:07:21 INF] Retrieved 3 pending orders for consumer consumer-cd231c17d
+[20:07:21 INF] Retrieved 3 pending orders for consumer consumer-cd231c17d
+[2025-12-04 20:07:46 INF] Cleaned up 2 old orders
+[20:07:46 INF] Cleaned up 2 old orders
+[2025-12-04 20:07:48 ERR] Marked 3 orders as failed due to max retry count
+[20:07:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:07:51 INF] Retrieved 3 pending orders for consumer consumer-4260c1981
+[20:07:51 INF] Retrieved 3 pending orders for consumer consumer-4260c1981
+[2025-12-04 20:08:17 INF] Order added: Id=4393b676-5bb0-4cf2-af6f-a7133c99ee0a, SourceId=10765581, EventType=POSITION_MODIFIED
+[20:08:17 INF] Order added: Id=4393b676-5bb0-4cf2-af6f-a7133c99ee0a, SourceId=10765581, EventType=POSITION_MODIFIED
+[2025-12-04 20:08:17 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[20:08:17 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[2025-12-04 20:08:18 ERR] Marked 3 orders as failed due to max retry count
+[20:08:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:08:21 INF] Retrieved 4 pending orders for consumer consumer-8aa5e9de2
+[20:08:21 INF] Retrieved 4 pending orders for consumer consumer-8aa5e9de2
+[2025-12-04 20:08:21 INF] Order marked as processed: Id=4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[20:08:21 INF] Order marked as processed: Id=4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[2025-12-04 20:08:21 INF] Order 4393b676-5bb0-4cf2-af6f-a7133c99ee0a marked as processed
+[20:08:21 INF] Order 4393b676-5bb0-4cf2-af6f-a7133c99ee0a marked as processed
+[2025-12-04 20:08:27 WRN] Duplicate order detected - SourceId: 10765581, EventType: POSITION_MODIFIED, ExistingId: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a. Idempotency check prevented duplicate registration.
+[20:08:27 WRN] Duplicate order detected - SourceId: 10765581, EventType: POSITION_MODIFIED, ExistingId: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a. Idempotency check prevented duplicate registration.
+[2025-12-04 20:08:27 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[20:08:27 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[2025-12-04 20:08:48 ERR] Marked 3 orders as failed due to max retry count
+[20:08:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:08:51 INF] Retrieved 3 pending orders for consumer consumer-4bd92554f
+[20:08:51 INF] Retrieved 3 pending orders for consumer consumer-4bd92554f
+[2025-12-04 20:09:18 ERR] Marked 3 orders as failed due to max retry count
+[20:09:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:09:21 INF] Retrieved 3 pending orders for consumer consumer-0390bd239
+[20:09:21 INF] Retrieved 3 pending orders for consumer consumer-0390bd239
+[2025-12-04 20:09:48 ERR] Marked 3 orders as failed due to max retry count
+[20:09:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:09:51 INF] Retrieved 3 pending orders for consumer consumer-120233ba2
+[20:09:51 INF] Retrieved 3 pending orders for consumer consumer-120233ba2
+[2025-12-04 20:10:18 ERR] Marked 3 orders as failed due to max retry count
+[20:10:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:10:21 INF] Retrieved 3 pending orders for consumer consumer-b299bac91
+[20:10:21 INF] Retrieved 3 pending orders for consumer consumer-b299bac91
+[2025-12-04 20:10:48 ERR] Marked 3 orders as failed due to max retry count
+[20:10:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:10:51 INF] Retrieved 3 pending orders for consumer consumer-5125ea918
+[20:10:51 INF] Retrieved 3 pending orders for consumer consumer-5125ea918
+[2025-12-04 20:11:18 ERR] Marked 3 orders as failed due to max retry count
+[20:11:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:11:21 INF] Retrieved 3 pending orders for consumer consumer-dbc64dbe0
+[20:11:21 INF] Retrieved 3 pending orders for consumer consumer-dbc64dbe0
+[2025-12-04 20:11:48 ERR] Marked 3 orders as failed due to max retry count
+[20:11:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:11:51 INF] Retrieved 3 pending orders for consumer consumer-22dd89216
+[20:11:51 INF] Retrieved 3 pending orders for consumer consumer-22dd89216
+[2025-12-04 20:12:18 ERR] Marked 3 orders as failed due to max retry count
+[20:12:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:12:21 INF] Retrieved 3 pending orders for consumer consumer-fbf477924
+[20:12:21 INF] Retrieved 3 pending orders for consumer consumer-fbf477924
+[2025-12-04 20:12:48 ERR] Marked 3 orders as failed due to max retry count
+[20:12:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:12:51 INF] Retrieved 3 pending orders for consumer consumer-6054c440e
+[20:12:51 INF] Retrieved 3 pending orders for consumer consumer-6054c440e
+[2025-12-04 20:13:18 ERR] Marked 3 orders as failed due to max retry count
+[20:13:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:13:21 INF] Retrieved 3 pending orders for consumer consumer-5bd91ec37
+[20:13:21 INF] Retrieved 3 pending orders for consumer consumer-5bd91ec37
+[2025-12-04 20:13:48 ERR] Marked 3 orders as failed due to max retry count
+[20:13:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:13:51 INF] Retrieved 3 pending orders for consumer consumer-050c92f5e
+[20:13:51 INF] Retrieved 3 pending orders for consumer consumer-050c92f5e
+[2025-12-04 20:14:18 ERR] Marked 3 orders as failed due to max retry count
+[20:14:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:14:21 INF] Retrieved 3 pending orders for consumer consumer-a070d39ee
+[20:14:21 INF] Retrieved 3 pending orders for consumer consumer-a070d39ee
+[2025-12-04 20:14:48 ERR] Marked 3 orders as failed due to max retry count
+[20:14:48 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:14:51 INF] Retrieved 3 pending orders for consumer consumer-3775048bd
+[20:14:51 INF] Retrieved 3 pending orders for consumer consumer-3775048bd
+[2025-12-04 20:15:18 ERR] Marked 3 orders as failed due to max retry count
+[20:15:18 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:15:21 INF] Retrieved 3 pending orders for consumer consumer-7b0302416
+[20:15:21 INF] Retrieved 3 pending orders for consumer consumer-7b0302416
+[2025-12-04 20:15:49 ERR] Marked 3 orders as failed due to max retry count
+[20:15:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:15:51 INF] Retrieved 3 pending orders for consumer consumer-f3dca4806
+[20:15:51 INF] Retrieved 3 pending orders for consumer consumer-f3dca4806
+[2025-12-04 20:16:19 ERR] Marked 3 orders as failed due to max retry count
+[20:16:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:16:21 INF] Retrieved 3 pending orders for consumer consumer-740e5f2bd
+[20:16:21 INF] Retrieved 3 pending orders for consumer consumer-740e5f2bd
+[2025-12-04 20:16:49 ERR] Marked 3 orders as failed due to max retry count
+[20:16:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:16:51 INF] Retrieved 3 pending orders for consumer consumer-5b385192d
+[20:16:51 INF] Retrieved 3 pending orders for consumer consumer-5b385192d
+[2025-12-04 20:17:19 ERR] Marked 3 orders as failed due to max retry count
+[20:17:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:17:21 INF] Retrieved 3 pending orders for consumer consumer-8abb97467
+[20:17:21 INF] Retrieved 3 pending orders for consumer consumer-8abb97467
+[2025-12-04 20:17:49 ERR] Marked 3 orders as failed due to max retry count
+[20:17:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:17:51 INF] Retrieved 3 pending orders for consumer consumer-37be70e3f
+[20:17:51 INF] Retrieved 3 pending orders for consumer consumer-37be70e3f
+[2025-12-04 20:18:19 ERR] Marked 3 orders as failed due to max retry count
+[20:18:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:18:21 INF] Retrieved 3 pending orders for consumer consumer-97aa5fa28
+[20:18:21 INF] Retrieved 3 pending orders for consumer consumer-97aa5fa28
+[2025-12-04 20:18:45 INF] Order added: Id=8719221c-b086-456b-90df-407d71c460ea, SourceId=10765602, EventType=POSITION_OPENED
+[20:18:45 INF] Order added: Id=8719221c-b086-456b-90df-407d71c460ea, SourceId=10765602, EventType=POSITION_OPENED
+[2025-12-04 20:18:45 INF] Order received and queued: 8719221c-b086-456b-90df-407d71c460ea
+[20:18:45 INF] Order received and queued: 8719221c-b086-456b-90df-407d71c460ea
+[2025-12-04 20:18:46 INF] Retrieved 1 pending orders for consumer consumer-8057ddf85
+[20:18:46 INF] Retrieved 1 pending orders for consumer consumer-8057ddf85
+[2025-12-04 20:18:46 INF] Ticket mapping added: Source=8719221c-b086-456b-90df-407d71c460ea, Slave=24103360
+[20:18:46 INF] Ticket mapping added: Source=8719221c-b086-456b-90df-407d71c460ea, Slave=24103360
+[2025-12-04 20:18:46 INF] Order marked as processed: Id=8719221c-b086-456b-90df-407d71c460ea
+[20:18:46 INF] Order marked as processed: Id=8719221c-b086-456b-90df-407d71c460ea
+[2025-12-04 20:18:46 INF] Order 8719221c-b086-456b-90df-407d71c460ea marked as processed
+[20:18:46 INF] Order 8719221c-b086-456b-90df-407d71c460ea marked as processed
+[2025-12-04 20:18:49 ERR] Marked 3 orders as failed due to max retry count
+[20:18:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:18:51 INF] Retrieved 3 pending orders for consumer consumer-caada9801
+[20:18:51 INF] Retrieved 3 pending orders for consumer consumer-caada9801
+[2025-12-04 20:19:19 ERR] Marked 3 orders as failed due to max retry count
+[20:19:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:19:21 INF] Retrieved 3 pending orders for consumer consumer-22aac3776
+[20:19:21 INF] Retrieved 3 pending orders for consumer consumer-22aac3776
+[2025-12-04 20:19:22 INF] Order added: Id=a267c03a-978c-45e9-8807-b23f52970200, SourceId=10765602, EventType=POSITION_MODIFIED
+[20:19:22 INF] Order added: Id=a267c03a-978c-45e9-8807-b23f52970200, SourceId=10765602, EventType=POSITION_MODIFIED
+[2025-12-04 20:19:22 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[20:19:22 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[2025-12-04 20:19:26 INF] Retrieved 1 pending orders for consumer consumer-ede41430e
+[20:19:26 INF] Retrieved 1 pending orders for consumer consumer-ede41430e
+[2025-12-04 20:19:26 INF] Order marked as processed: Id=a267c03a-978c-45e9-8807-b23f52970200
+[20:19:26 INF] Order marked as processed: Id=a267c03a-978c-45e9-8807-b23f52970200
+[2025-12-04 20:19:26 INF] Order a267c03a-978c-45e9-8807-b23f52970200 marked as processed
+[20:19:26 INF] Order a267c03a-978c-45e9-8807-b23f52970200 marked as processed
+[2025-12-04 20:19:27 WRN] Duplicate order detected - SourceId: 10765581, EventType: POSITION_MODIFIED, ExistingId: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a. Idempotency check prevented duplicate registration.
+[20:19:27 WRN] Duplicate order detected - SourceId: 10765581, EventType: POSITION_MODIFIED, ExistingId: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a. Idempotency check prevented duplicate registration.
+[2025-12-04 20:19:27 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[20:19:27 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[2025-12-04 20:19:41 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[20:19:41 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[2025-12-04 20:19:41 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[20:19:41 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[2025-12-04 20:19:49 ERR] Marked 3 orders as failed due to max retry count
+[20:19:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:19:50 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[20:19:50 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[2025-12-04 20:19:50 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[20:19:50 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[2025-12-04 20:19:51 INF] Retrieved 3 pending orders for consumer consumer-6e43dc0e5
+[20:19:51 INF] Retrieved 3 pending orders for consumer consumer-6e43dc0e5
+[2025-12-04 20:20:09 WRN] Duplicate order detected - SourceId: 10765581, EventType: POSITION_MODIFIED, ExistingId: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a. Idempotency check prevented duplicate registration.
+[20:20:09 WRN] Duplicate order detected - SourceId: 10765581, EventType: POSITION_MODIFIED, ExistingId: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a. Idempotency check prevented duplicate registration.
+[2025-12-04 20:20:09 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[20:20:09 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[2025-12-04 20:20:19 ERR] Marked 3 orders as failed due to max retry count
+[20:20:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:20:21 INF] Retrieved 3 pending orders for consumer consumer-36926b9d9
+[20:20:21 INF] Retrieved 3 pending orders for consumer consumer-36926b9d9
+[2025-12-04 20:20:26 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[20:20:26 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[2025-12-04 20:20:26 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[20:20:26 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[2025-12-04 20:20:37 WRN] Duplicate order detected - SourceId: 10765581, EventType: POSITION_MODIFIED, ExistingId: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a. Idempotency check prevented duplicate registration.
+[20:20:37 WRN] Duplicate order detected - SourceId: 10765581, EventType: POSITION_MODIFIED, ExistingId: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a. Idempotency check prevented duplicate registration.
+[2025-12-04 20:20:37 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[20:20:37 INF] Order received and queued: 4393b676-5bb0-4cf2-af6f-a7133c99ee0a
+[2025-12-04 20:20:49 ERR] Marked 3 orders as failed due to max retry count
+[20:20:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:20:51 INF] Retrieved 3 pending orders for consumer consumer-851cac21b
+[20:20:51 INF] Retrieved 3 pending orders for consumer consumer-851cac21b
+[2025-12-04 20:21:19 ERR] Marked 3 orders as failed due to max retry count
+[20:21:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:21:21 INF] Retrieved 3 pending orders for consumer consumer-1b4484c4f
+[20:21:21 INF] Retrieved 3 pending orders for consumer consumer-1b4484c4f
+[2025-12-04 20:21:49 ERR] Marked 3 orders as failed due to max retry count
+[20:21:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:21:51 INF] Retrieved 3 pending orders for consumer consumer-f883412b3
+[20:21:51 INF] Retrieved 3 pending orders for consumer consumer-f883412b3
+[2025-12-04 20:22:19 ERR] Marked 3 orders as failed due to max retry count
+[20:22:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:22:21 INF] Retrieved 3 pending orders for consumer consumer-be3828694
+[20:22:21 INF] Retrieved 3 pending orders for consumer consumer-be3828694
+[2025-12-04 20:22:49 ERR] Marked 3 orders as failed due to max retry count
+[20:22:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:22:51 INF] Retrieved 3 pending orders for consumer consumer-85acaf86b
+[20:22:51 INF] Retrieved 3 pending orders for consumer consumer-85acaf86b
+[2025-12-04 20:23:19 ERR] Marked 3 orders as failed due to max retry count
+[20:23:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:23:20 INF] Retrieved 3 pending orders for consumer consumer-d1de56238
+[20:23:20 INF] Retrieved 3 pending orders for consumer consumer-d1de56238
+[2025-12-04 20:23:49 ERR] Marked 3 orders as failed due to max retry count
+[20:23:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:23:50 INF] Retrieved 3 pending orders for consumer consumer-98f1a1108
+[20:23:50 INF] Retrieved 3 pending orders for consumer consumer-98f1a1108
+[2025-12-04 20:24:19 ERR] Marked 3 orders as failed due to max retry count
+[20:24:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:24:20 INF] Retrieved 3 pending orders for consumer consumer-d0f5bc8e6
+[20:24:20 INF] Retrieved 3 pending orders for consumer consumer-d0f5bc8e6
+[2025-12-04 20:24:49 ERR] Marked 3 orders as failed due to max retry count
+[20:24:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:24:50 INF] Retrieved 3 pending orders for consumer consumer-9a3e541ff
+[20:24:50 INF] Retrieved 3 pending orders for consumer consumer-9a3e541ff
+[2025-12-04 20:25:19 ERR] Marked 3 orders as failed due to max retry count
+[20:25:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:25:20 INF] Retrieved 3 pending orders for consumer consumer-5eed404d6
+[20:25:20 INF] Retrieved 3 pending orders for consumer consumer-5eed404d6
+[2025-12-04 20:25:46 INF] Order added: Id=9577c3cb-9fb2-4572-ad0e-bb2ee48738e1, SourceId=10765581, EventType=POSITION_CLOSED
+[20:25:46 INF] Order added: Id=9577c3cb-9fb2-4572-ad0e-bb2ee48738e1, SourceId=10765581, EventType=POSITION_CLOSED
+[2025-12-04 20:25:46 INF] Order received and queued: 9577c3cb-9fb2-4572-ad0e-bb2ee48738e1
+[20:25:46 INF] Order received and queued: 9577c3cb-9fb2-4572-ad0e-bb2ee48738e1
+[2025-12-04 20:25:49 ERR] Marked 3 orders as failed due to max retry count
+[20:25:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:25:50 INF] Retrieved 4 pending orders for consumer consumer-22742fc31
+[20:25:50 INF] Retrieved 4 pending orders for consumer consumer-22742fc31
+[2025-12-04 20:25:51 INF] Order marked as processed: Id=9577c3cb-9fb2-4572-ad0e-bb2ee48738e1
+[20:25:51 INF] Order marked as processed: Id=9577c3cb-9fb2-4572-ad0e-bb2ee48738e1
+[2025-12-04 20:25:51 INF] Order 9577c3cb-9fb2-4572-ad0e-bb2ee48738e1 marked as processed
+[20:25:51 INF] Order 9577c3cb-9fb2-4572-ad0e-bb2ee48738e1 marked as processed
+[2025-12-04 20:26:11 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[20:26:11 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[2025-12-04 20:26:11 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[20:26:11 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[2025-12-04 20:26:19 ERR] Marked 3 orders as failed due to max retry count
+[20:26:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:26:20 INF] Retrieved 3 pending orders for consumer consumer-4bcd5217e
+[20:26:20 INF] Retrieved 3 pending orders for consumer consumer-4bcd5217e
+[2025-12-04 20:26:36 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[20:26:36 WRN] Duplicate order detected - SourceId: 10765602, EventType: POSITION_MODIFIED, ExistingId: a267c03a-978c-45e9-8807-b23f52970200. Idempotency check prevented duplicate registration.
+[2025-12-04 20:26:36 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[20:26:36 INF] Order received and queued: a267c03a-978c-45e9-8807-b23f52970200
+[2025-12-04 20:26:49 ERR] Marked 3 orders as failed due to max retry count
+[20:26:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:26:50 INF] Retrieved 3 pending orders for consumer consumer-6f6a1f4ac
+[20:26:50 INF] Retrieved 3 pending orders for consumer consumer-6f6a1f4ac
+[2025-12-04 20:27:19 ERR] Marked 3 orders as failed due to max retry count
+[20:27:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:27:20 INF] Retrieved 3 pending orders for consumer consumer-c3993ed76
+[20:27:20 INF] Retrieved 3 pending orders for consumer consumer-c3993ed76
+[2025-12-04 20:27:49 ERR] Marked 3 orders as failed due to max retry count
+[20:27:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:27:50 INF] Retrieved 3 pending orders for consumer consumer-3df46f72c
+[20:27:50 INF] Retrieved 3 pending orders for consumer consumer-3df46f72c
+[2025-12-04 20:28:19 ERR] Marked 3 orders as failed due to max retry count
+[20:28:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:28:20 INF] Retrieved 3 pending orders for consumer consumer-ccf3cda11
+[20:28:20 INF] Retrieved 3 pending orders for consumer consumer-ccf3cda11
+[2025-12-04 20:28:49 ERR] Marked 3 orders as failed due to max retry count
+[20:28:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:28:50 INF] Retrieved 3 pending orders for consumer consumer-4051e8620
+[20:28:50 INF] Retrieved 3 pending orders for consumer consumer-4051e8620
+[2025-12-04 20:29:19 ERR] Marked 3 orders as failed due to max retry count
+[20:29:19 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:29:20 INF] Retrieved 3 pending orders for consumer consumer-65e9486c2
+[20:29:20 INF] Retrieved 3 pending orders for consumer consumer-65e9486c2
+[2025-12-04 20:29:49 ERR] Marked 3 orders as failed due to max retry count
+[20:29:49 ERR] Marked 3 orders as failed due to max retry count
+[2025-12-04 20:29:50 INF] Retrieved 3 pending orders for consumer consumer-647190422
+[20:29:50 INF] Retrieved 3 pending orders for consumer consumer-647190422
+[2025-12-04 20:29:58 INF] Order marked as processed: Id=c1273468-750c-4a84-9f7c-77fbef722f6e
+[20:29:58 INF] Order marked as processed: Id=c1273468-750c-4a84-9f7c-77fbef722f6e
+[2025-12-04 20:29:58 INF] Order c1273468-750c-4a84-9f7c-77fbef722f6e marked as processed
+[20:29:58 INF] Order c1273468-750c-4a84-9f7c-77fbef722f6e marked as processed
+[2025-12-04 20:29:58 INF] Order marked as processed: Id=ec2d835b-f0a2-4834-9a84-e63a0647b46a
+[20:29:58 INF] Order marked as processed: Id=ec2d835b-f0a2-4834-9a84-e63a0647b46a
+[2025-12-04 20:29:58 INF] Order ec2d835b-f0a2-4834-9a84-e63a0647b46a marked as processed
+[20:29:58 INF] Order ec2d835b-f0a2-4834-9a84-e63a0647b46a marked as processed
+[2025-12-04 20:29:58 INF] Order marked as processed: Id=b19d3501-cf09-4c0a-89ee-249ca5333124
+[20:29:58 INF] Order marked as processed: Id=b19d3501-cf09-4c0a-89ee-249ca5333124
+[2025-12-04 20:29:58 INF] Order b19d3501-cf09-4c0a-89ee-249ca5333124 marked as processed
+[20:29:58 INF] Order b19d3501-cf09-4c0a-89ee-249ca5333124 marked as processed
+[2025-12-04 20:34:28 INF] Order added: Id=27818b7f-0e97-41a5-825e-8c70c3b6ec4e, SourceId=10765602, EventType=POSITION_CLOSED
+[20:34:28 INF] Order added: Id=27818b7f-0e97-41a5-825e-8c70c3b6ec4e, SourceId=10765602, EventType=POSITION_CLOSED
+[2025-12-04 20:34:28 INF] Order received and queued: 27818b7f-0e97-41a5-825e-8c70c3b6ec4e
+[20:34:28 INF] Order received and queued: 27818b7f-0e97-41a5-825e-8c70c3b6ec4e
+[2025-12-04 20:34:30 INF] Retrieved 1 pending orders for consumer consumer-32f03c6b9
+[20:34:30 INF] Retrieved 1 pending orders for consumer consumer-32f03c6b9
+[2025-12-04 20:34:31 INF] Order marked as processed: Id=27818b7f-0e97-41a5-825e-8c70c3b6ec4e
+[20:34:31 INF] Order marked as processed: Id=27818b7f-0e97-41a5-825e-8c70c3b6ec4e
+[2025-12-04 20:34:31 INF] Order 27818b7f-0e97-41a5-825e-8c70c3b6ec4e marked as processed
+[20:34:31 INF] Order 27818b7f-0e97-41a5-825e-8c70c3b6ec4e marked as processed
+[2025-12-04 20:36:00 INF] Order added: Id=89af9e47-0f8e-4d70-868e-fab62ac6071e, SourceId=10765616, EventType=POSITION_OPENED
+[20:36:00 INF] Order added: Id=89af9e47-0f8e-4d70-868e-fab62ac6071e, SourceId=10765616, EventType=POSITION_OPENED
+[2025-12-04 20:36:00 INF] Order received and queued: 89af9e47-0f8e-4d70-868e-fab62ac6071e
+[20:36:00 INF] Order received and queued: 89af9e47-0f8e-4d70-868e-fab62ac6071e
+[2025-12-04 20:36:05 INF] Retrieved 1 pending orders for consumer consumer-f22d9a970
+[20:36:05 INF] Retrieved 1 pending orders for consumer consumer-f22d9a970
+[2025-12-04 20:36:06 INF] Ticket mapping added: Source=89af9e47-0f8e-4d70-868e-fab62ac6071e, Slave=24103534
+[20:36:06 INF] Ticket mapping added: Source=89af9e47-0f8e-4d70-868e-fab62ac6071e, Slave=24103534
+[2025-12-04 20:36:06 INF] Order marked as processed: Id=89af9e47-0f8e-4d70-868e-fab62ac6071e
+[20:36:06 INF] Order marked as processed: Id=89af9e47-0f8e-4d70-868e-fab62ac6071e
+[2025-12-04 20:36:06 INF] Order 89af9e47-0f8e-4d70-868e-fab62ac6071e marked as processed
+[20:36:06 INF] Order 89af9e47-0f8e-4d70-868e-fab62ac6071e marked as processed
+[2025-12-04 20:36:16 INF] Order added: Id=b1bd9819-2823-4ce5-994d-3c46ba4a528b, SourceId=10765616, EventType=POSITION_MODIFIED
+[20:36:16 INF] Order added: Id=b1bd9819-2823-4ce5-994d-3c46ba4a528b, SourceId=10765616, EventType=POSITION_MODIFIED
+[2025-12-04 20:36:16 INF] Order received and queued: b1bd9819-2823-4ce5-994d-3c46ba4a528b
+[20:36:16 INF] Order received and queued: b1bd9819-2823-4ce5-994d-3c46ba4a528b
+[2025-12-04 20:36:20 INF] Retrieved 1 pending orders for consumer consumer-af516438d
+[20:36:20 INF] Retrieved 1 pending orders for consumer consumer-af516438d
+[2025-12-04 20:36:21 INF] Order marked as processed: Id=b1bd9819-2823-4ce5-994d-3c46ba4a528b
+[20:36:21 INF] Order marked as processed: Id=b1bd9819-2823-4ce5-994d-3c46ba4a528b
+[2025-12-04 20:36:21 INF] Order b1bd9819-2823-4ce5-994d-3c46ba4a528b marked as processed
+[20:36:21 INF] Order b1bd9819-2823-4ce5-994d-3c46ba4a528b marked as processed
+[2025-12-04 20:36:24 WRN] Duplicate order detected - SourceId: 10765616, EventType: POSITION_MODIFIED, ExistingId: b1bd9819-2823-4ce5-994d-3c46ba4a528b. Idempotency check prevented duplicate registration.
+[20:36:24 WRN] Duplicate order detected - SourceId: 10765616, EventType: POSITION_MODIFIED, ExistingId: b1bd9819-2823-4ce5-994d-3c46ba4a528b. Idempotency check prevented duplicate registration.
+[2025-12-04 20:36:24 INF] Order received and queued: b1bd9819-2823-4ce5-994d-3c46ba4a528b
+[20:36:24 INF] Order received and queued: b1bd9819-2823-4ce5-994d-3c46ba4a528b
+[2025-12-04 20:37:23 WRN] Duplicate order detected - SourceId: 10765616, EventType: POSITION_MODIFIED, ExistingId: b1bd9819-2823-4ce5-994d-3c46ba4a528b. Idempotency check prevented duplicate registration.
+[20:37:23 WRN] Duplicate order detected - SourceId: 10765616, EventType: POSITION_MODIFIED, ExistingId: b1bd9819-2823-4ce5-994d-3c46ba4a528b. Idempotency check prevented duplicate registration.
+[2025-12-04 20:37:23 INF] Order received and queued: b1bd9819-2823-4ce5-994d-3c46ba4a528b
+[20:37:23 INF] Order received and queued: b1bd9819-2823-4ce5-994d-3c46ba4a528b
+[2025-12-04 20:40:48 INF] Order added: Id=7536639b-cb12-4e25-a1a8-c9ae60efacea, SourceId=10765616, EventType=POSITION_CLOSED
+[20:40:48 INF] Order added: Id=7536639b-cb12-4e25-a1a8-c9ae60efacea, SourceId=10765616, EventType=POSITION_CLOSED
+[2025-12-04 20:40:48 INF] Order received and queued: 7536639b-cb12-4e25-a1a8-c9ae60efacea
+[20:40:48 INF] Order received and queued: 7536639b-cb12-4e25-a1a8-c9ae60efacea
+[2025-12-04 20:40:50 INF] Retrieved 1 pending orders for consumer consumer-ada14d765
+[20:40:50 INF] Retrieved 1 pending orders for consumer consumer-ada14d765
+[2025-12-04 20:40:51 INF] Order marked as processed: Id=7536639b-cb12-4e25-a1a8-c9ae60efacea
+[20:40:51 INF] Order marked as processed: Id=7536639b-cb12-4e25-a1a8-c9ae60efacea
+[2025-12-04 20:40:51 INF] Order 7536639b-cb12-4e25-a1a8-c9ae60efacea marked as processed
+[20:40:51 INF] Order 7536639b-cb12-4e25-a1a8-c9ae60efacea marked as processed
+[2025-12-04 20:45:46 INF] Order added: Id=94a6c573-838c-496e-b2ef-b04cb78f297d, SourceId=10765640, EventType=POSITION_OPENED
+[20:45:46 INF] Order added: Id=94a6c573-838c-496e-b2ef-b04cb78f297d, SourceId=10765640, EventType=POSITION_OPENED
+[2025-12-04 20:45:46 INF] Order received and queued: 94a6c573-838c-496e-b2ef-b04cb78f297d
+[20:45:46 INF] Order received and queued: 94a6c573-838c-496e-b2ef-b04cb78f297d
+[2025-12-04 20:45:50 INF] Retrieved 1 pending orders for consumer consumer-bdea82682
+[20:45:50 INF] Retrieved 1 pending orders for consumer consumer-bdea82682
+[2025-12-04 20:45:51 INF] Ticket mapping added: Source=94a6c573-838c-496e-b2ef-b04cb78f297d, Slave=24103669
+[20:45:51 INF] Ticket mapping added: Source=94a6c573-838c-496e-b2ef-b04cb78f297d, Slave=24103669
+[2025-12-04 20:45:51 INF] Order marked as processed: Id=94a6c573-838c-496e-b2ef-b04cb78f297d
+[20:45:51 INF] Order marked as processed: Id=94a6c573-838c-496e-b2ef-b04cb78f297d
+[2025-12-04 20:45:51 INF] Order 94a6c573-838c-496e-b2ef-b04cb78f297d marked as processed
+[20:45:51 INF] Order 94a6c573-838c-496e-b2ef-b04cb78f297d marked as processed
+[2025-12-04 20:46:09 INF] Order added: Id=8a4efe19-e083-47b5-9129-2d707250bcfa, SourceId=10765640, EventType=POSITION_CLOSED
+[20:46:09 INF] Order added: Id=8a4efe19-e083-47b5-9129-2d707250bcfa, SourceId=10765640, EventType=POSITION_CLOSED
+[2025-12-04 20:46:09 INF] Order received and queued: 8a4efe19-e083-47b5-9129-2d707250bcfa
+[20:46:09 INF] Order received and queued: 8a4efe19-e083-47b5-9129-2d707250bcfa
+[2025-12-04 20:46:10 INF] Retrieved 1 pending orders for consumer consumer-a2ed6f5b5
+[20:46:10 INF] Retrieved 1 pending orders for consumer consumer-a2ed6f5b5
+[2025-12-04 20:46:11 INF] Order marked as processed: Id=8a4efe19-e083-47b5-9129-2d707250bcfa
+[20:46:11 INF] Order marked as processed: Id=8a4efe19-e083-47b5-9129-2d707250bcfa
+[2025-12-04 20:46:11 INF] Order 8a4efe19-e083-47b5-9129-2d707250bcfa marked as processed
+[20:46:11 INF] Order 8a4efe19-e083-47b5-9129-2d707250bcfa marked as processed
+[2025-12-04 20:49:24 INF] Order added: Id=4f5a489c-712a-444b-b5e0-66dfa68da90b, SourceId=20749889, EventType=PENDING_ORDER_CREATED
+[20:49:24 INF] Order added: Id=4f5a489c-712a-444b-b5e0-66dfa68da90b, SourceId=20749889, EventType=PENDING_ORDER_CREATED
+[2025-12-04 20:49:24 INF] Order received and queued: 4f5a489c-712a-444b-b5e0-66dfa68da90b
+[20:49:24 INF] Order received and queued: 4f5a489c-712a-444b-b5e0-66dfa68da90b
+[2025-12-04 20:49:25 INF] Retrieved 1 pending orders for consumer consumer-0e2e139dc
+[20:49:25 INF] Retrieved 1 pending orders for consumer consumer-0e2e139dc
+[2025-12-04 20:49:26 INF] Ticket mapping added: Source=4f5a489c-712a-444b-b5e0-66dfa68da90b, Slave=24103701
+[20:49:26 INF] Ticket mapping added: Source=4f5a489c-712a-444b-b5e0-66dfa68da90b, Slave=24103701
+[2025-12-04 20:49:26 INF] Order marked as processed: Id=4f5a489c-712a-444b-b5e0-66dfa68da90b
+[20:49:26 INF] Order marked as processed: Id=4f5a489c-712a-444b-b5e0-66dfa68da90b
+[2025-12-04 20:49:26 INF] Order 4f5a489c-712a-444b-b5e0-66dfa68da90b marked as processed
+[20:49:26 INF] Order 4f5a489c-712a-444b-b5e0-66dfa68da90b marked as processed
+[2025-12-04 20:55:01 INF] Order added: Id=22399f31-339a-4f50-922c-f070a8fd0eaa, SourceId=20749889, EventType=PENDING_ORDER_CANCELLED
+[20:55:01 INF] Order added: Id=22399f31-339a-4f50-922c-f070a8fd0eaa, SourceId=20749889, EventType=PENDING_ORDER_CANCELLED
+[2025-12-04 20:55:01 INF] Order received and queued: 22399f31-339a-4f50-922c-f070a8fd0eaa
+[20:55:01 INF] Order received and queued: 22399f31-339a-4f50-922c-f070a8fd0eaa
+[2025-12-04 20:55:05 INF] Retrieved 1 pending orders for consumer consumer-3642a23d3
+[20:55:05 INF] Retrieved 1 pending orders for consumer consumer-3642a23d3
+[2025-12-04 20:55:06 INF] Order marked as processed: Id=22399f31-339a-4f50-922c-f070a8fd0eaa
+[20:55:06 INF] Order marked as processed: Id=22399f31-339a-4f50-922c-f070a8fd0eaa
+[2025-12-04 20:55:06 INF] Order 22399f31-339a-4f50-922c-f070a8fd0eaa marked as processed
+[20:55:06 INF] Order 22399f31-339a-4f50-922c-f070a8fd0eaa marked as processed
+[2025-12-04 21:35:01 INF] Order added: Id=adb351d9-399d-4852-b9b5-09622c0e80fd, SourceId=10765719, EventType=POSITION_OPENED
+[21:35:01 INF] Order added: Id=adb351d9-399d-4852-b9b5-09622c0e80fd, SourceId=10765719, EventType=POSITION_OPENED
+[2025-12-04 21:35:01 INF] Order received and queued: adb351d9-399d-4852-b9b5-09622c0e80fd
+[21:35:01 INF] Order received and queued: adb351d9-399d-4852-b9b5-09622c0e80fd
+[2025-12-04 21:35:01 INF] Retrieved 1 pending orders for consumer consumer-ad314c5aa
+[21:35:01 INF] Retrieved 1 pending orders for consumer consumer-ad314c5aa
+[2025-12-04 21:35:02 INF] Ticket mapping added: Source=adb351d9-399d-4852-b9b5-09622c0e80fd, Slave=24104452
+[21:35:02 INF] Ticket mapping added: Source=adb351d9-399d-4852-b9b5-09622c0e80fd, Slave=24104452
+[2025-12-04 21:35:02 INF] Order marked as processed: Id=adb351d9-399d-4852-b9b5-09622c0e80fd
+[21:35:02 INF] Order marked as processed: Id=adb351d9-399d-4852-b9b5-09622c0e80fd
+[2025-12-04 21:35:02 INF] Order adb351d9-399d-4852-b9b5-09622c0e80fd marked as processed
+[21:35:02 INF] Order adb351d9-399d-4852-b9b5-09622c0e80fd marked as processed
+[2025-12-04 21:35:11 INF] Order added: Id=a50a5e64-030d-42b8-9325-7ce53befaa47, SourceId=10765719, EventType=POSITION_MODIFIED
+[21:35:11 INF] Order added: Id=a50a5e64-030d-42b8-9325-7ce53befaa47, SourceId=10765719, EventType=POSITION_MODIFIED
+[2025-12-04 21:35:11 INF] Order received and queued: a50a5e64-030d-42b8-9325-7ce53befaa47
+[21:35:11 INF] Order received and queued: a50a5e64-030d-42b8-9325-7ce53befaa47
+[2025-12-04 21:35:11 INF] Retrieved 1 pending orders for consumer consumer-99cd65569
+[21:35:11 INF] Retrieved 1 pending orders for consumer consumer-99cd65569
+[2025-12-04 21:35:12 INF] Order marked as processed: Id=a50a5e64-030d-42b8-9325-7ce53befaa47
+[21:35:12 INF] Order marked as processed: Id=a50a5e64-030d-42b8-9325-7ce53befaa47
+[2025-12-04 21:35:12 INF] Order a50a5e64-030d-42b8-9325-7ce53befaa47 marked as processed
+[21:35:12 INF] Order a50a5e64-030d-42b8-9325-7ce53befaa47 marked as processed
+[2025-12-04 21:35:19 WRN] Duplicate order detected - SourceId: 10765719, EventType: POSITION_MODIFIED, ExistingId: a50a5e64-030d-42b8-9325-7ce53befaa47. Idempotency check prevented duplicate registration.
+[21:35:19 WRN] Duplicate order detected - SourceId: 10765719, EventType: POSITION_MODIFIED, ExistingId: a50a5e64-030d-42b8-9325-7ce53befaa47. Idempotency check prevented duplicate registration.
+[2025-12-04 21:35:19 INF] Order received and queued: a50a5e64-030d-42b8-9325-7ce53befaa47
+[21:35:19 INF] Order received and queued: a50a5e64-030d-42b8-9325-7ce53befaa47
+[2025-12-04 21:36:07 INF] Cleaned up 11 old orders
+[21:36:07 INF] Cleaned up 11 old orders

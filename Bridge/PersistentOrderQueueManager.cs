@@ -232,6 +232,37 @@ namespace Bridge
                     var existingId = checkCommand.ExecuteScalar() as string;
                     if (existingId != null)
                     {
+                        // For POSITION_MODIFIED events, update existing record instead of rejecting
+                        if (order.EventType == "POSITION_MODIFIED")
+                        {
+                            var updateCommand = connection.CreateCommand();
+                            updateCommand.CommandText = @"
+                                UPDATE Orders SET 
+                                    StopLoss = @StopLoss,
+                                    TakeProfit = @TakeProfit,
+                                    Timestamp = @Timestamp,
+                                    Processed = 0,
+                                    ProcessedAt = NULL,
+                                    Processing = 0,
+                                    ProcessingBy = NULL,
+                                    ProcessingAt = NULL
+                                WHERE Id = @Id
+                            ";
+                            updateCommand.Parameters.AddWithValue("@StopLoss", order.StopLoss ?? (object)DBNull.Value);
+                            updateCommand.Parameters.AddWithValue("@TakeProfit", order.TakeProfit ?? (object)DBNull.Value);
+                            updateCommand.Parameters.AddWithValue("@Timestamp", order.Timestamp.ToString("o"));
+                            updateCommand.Parameters.AddWithValue("@Id", existingId);
+                            updateCommand.ExecuteNonQuery();
+                            
+                            _logger.LogInformation("POSITION_MODIFIED updated: Id={Id}, SourceId={SourceId}, SL={StopLoss}, TP={TakeProfit}", 
+                                SanitizeForLog(existingId), SanitizeForLog(order.SourceId), 
+                                order.StopLoss ?? "null", order.TakeProfit ?? "null");
+                            
+                            OrdersReceivedCounter.Inc();
+                            UpdatePendingOrdersGauge();
+                            return existingId;
+                        }
+                        
                         _logger.LogWarning("Duplicate order detected - SourceId: {SourceId}, EventType: {EventType}, ExistingId: {ExistingId}. Idempotency check prevented duplicate registration.", 
                             SanitizeForLog(order.SourceId), SanitizeForLog(order.EventType), SanitizeForLog(existingId));
                         DuplicateOrdersCounter.Inc();

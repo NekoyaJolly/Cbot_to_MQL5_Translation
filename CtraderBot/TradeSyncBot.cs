@@ -16,7 +16,7 @@ namespace CtraderBot
     [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.FullAccess)]
     public class TradeSyncBot : Robot
     {
-        [Parameter("Bridge Server URL", DefaultValue = "http://localhost:5000")]
+        [Parameter("Bridge Server URL", DefaultValue = "http://127.0.0.1:5000")]
         public string BridgeUrl { get; set; }
 
         [Parameter("Enable Sync", DefaultValue = true)]

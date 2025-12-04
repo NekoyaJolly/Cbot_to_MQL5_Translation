@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -473,6 +474,8 @@ namespace Bridge
                         services.AddControllers()
                             .AddJsonOptions(options =>
                             {
+                                // Use PascalCase for JSON property names (to match cBot and MT5 EA)
+                                options.JsonSerializerOptions.PropertyNamingPolicy = null;
                                 // Limit JSON depth to prevent stack overflow from deeply nested JSON
                                 options.JsonSerializerOptions.MaxDepth = 32;
                             });

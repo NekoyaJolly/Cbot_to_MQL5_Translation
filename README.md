@@ -53,12 +53,12 @@ Add `CtraderBot/TradeSyncBot.cs` to Ctrader Automate and start
 
 1. `MT5EA/TradeSyncReceiver.mq5` を `MQL5/Experts/` にコピー
 2. `MT5EA/JAson.mqh` を `MQL5/Include/` にコピー
-3. MT5で `http://localhost:5000` をWebRequest許可リストに追加
+3. MT5で `http://127.0.0.1:5000` をWebRequest許可リストに追加
 4. チャートにEAを適用して起動
 
 1. Copy `MT5EA/TradeSyncReceiver.mq5` to `MQL5/Experts/`
 2. Copy `MT5EA/JAson.mqh` to `MQL5/Include/`
-3. Add `http://localhost:5000` to WebRequest allowed URLs in MT5
+3. Add `http://127.0.0.1:5000` to WebRequest allowed URLs in MT5
 4. Apply EA to chart and start
 
 ## ドキュメント / Documentation
