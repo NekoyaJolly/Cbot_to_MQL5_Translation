@@ -1,0 +1,13 @@
+{
+    "chat.mcp.serverSampling": {
+        "Cbot_to_MQL5_Translation/.vscode/mcp.json: mql5": {
+            "allowedModels": [
+                "copilot/claude-haiku-4.5",
+                "copilot/claude-sonnet-4.5",
+                "copilot/gemini-3-pro-preview",
+                "copilot/gpt-5.1",
+                "copilot/gpt-5.1-codex"
+            ]
+        }
+    }
+}

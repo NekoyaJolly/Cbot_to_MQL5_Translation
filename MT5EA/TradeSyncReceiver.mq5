@@ -8,7 +8,11 @@
 #property version   "1.00"
 #property strict
 
+#ifdef __INTELLISENSE__
+#include "stubs\TradeStub.mqh"
+#else
 #include <Trade\Trade.mqh>
+#endif
 #include "JAson.mqh"
 
 //--- Input parameters
