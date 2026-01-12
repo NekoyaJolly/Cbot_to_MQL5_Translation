@@ -1,0 +1,44 @@
+  蠕ｩ蜈・ｯｾ雎｡縺ｮ繝励Ο繧ｸ繧ｧ繧ｯ繝医ｒ豎ｺ螳壹＠縺ｦ縺・∪縺・..
+  蠕ｩ蜈・ｯｾ雎｡縺ｮ縺吶∋縺ｦ縺ｮ繝励Ο繧ｸ繧ｧ繧ｯ繝医・譛譁ｰ縺ｧ縺吶・
+  Bridge -> C:\Users\Nekoya2\appprojects\Cbot_to_MQL5_Translation\Bridge\bin\Debug\net10.0\Bridge.dll
+  Bridge.Tests -> C:\Users\Nekoya2\appprojects\Cbot_to_MQL5_Translation\Bridge.Tests\bin\Debug\net10.0\Bridge.Tests.dll
+C:\Users\Nekoya2\appprojects\Cbot_to_MQL5_Translation\Bridge.Tests\bin\Debug\net10.0\Bridge.Tests.dll (.NETCoreApp,Version=v10.0) 縺ｮ繝・せ繝亥ｮ溯｡・
+VSTest 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 18.0.1 (x64)
+
+繝・せ繝亥ｮ溯｡後ｒ髢句ｧ九＠縺ｦ縺・∪縺吶ゅ♀蠕・■縺上□縺輔＞...
+蜷郁ｨ・1 蛟九・繝・せ繝・繝輔ぃ繧､繝ｫ縺梧欠螳壹＆繧後◆繝代ち繝ｼ繝ｳ縺ｨ荳閾ｴ縺励∪縺励◆縲・
+[xUnit.net 00:00:00.21]     Bridge.Tests.CompilationValidationTests.MQL5_EA_Syntax_ShouldBeValid [FAIL]
+  螟ｱ謨・Bridge.Tests.CompilationValidationTests.MQL5_EA_Syntax_ShouldBeValid [11 ms]
+  繧ｨ繝ｩ繝ｼ 繝｡繝・そ繝ｼ繧ｸ:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["Line 31: Input declaration should end with semicol"ﾂｷﾂｷﾂｷ]
+  繧ｹ繧ｿ繝・け 繝医Ξ繝ｼ繧ｹ:
+     at Bridge.Tests.CompilationValidationTests.MQL5_EA_Syntax_ShouldBeValid() in C:\Users\Nekoya2\appprojects\Cbot_to_MQL5_Translation\Bridge.Tests\CompilationValidationTests.cs:line 128
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  讓呎ｺ門・蜉帙Γ繝・そ繝ｼ繧ｸ:
+ Checking MQL5 EA syntax...
+ 笨・Line 31: Input declaration should end with semicolon: input string BridgeUrl = "http://127.0.0.1:5000";  // Bridge Server URL
+
+
+[xUnit.net 00:00:00.98]     Bridge.Tests.BridgeIntegrationTests.TestHttp2xxStatusCodes_ShouldBeAcceptedAsSuccess [FAIL]
+[xUnit.net 00:00:00.99]     Bridge.Tests.BridgeIntegrationTests.TestMarkProcessed_ShouldUpdateOrderStatus [FAIL]
+  螟ｱ謨・Bridge.Tests.BridgeIntegrationTests.TestHttp2xxStatusCodes_ShouldBeAcceptedAsSuccess [22 ms]
+  繧ｨ繝ｩ繝ｼ 繝｡繝・そ繝ｼ繧ｸ:
+   Expected 2xx status code, got NotFound
+  繧ｹ繧ｿ繝・け 繝医Ξ繝ｼ繧ｹ:
+     at Bridge.Tests.BridgeIntegrationTests.TestHttp2xxStatusCodes_ShouldBeAcceptedAsSuccess() in C:\Users\Nekoya2\appprojects\Cbot_to_MQL5_Translation\Bridge.Tests\BridgeIntegrationTests.cs:line 377
+--- End of stack trace from previous location ---
+  螟ｱ謨・Bridge.Tests.BridgeIntegrationTests.TestMarkProcessed_ShouldUpdateOrderStatus [9 ms]
+  繧ｨ繝ｩ繝ｼ 繝｡繝・そ繝ｼ繧ｸ:
+   System.Net.Http.HttpRequestException : Response status code does not indicate success: 404 (Not Found).
+  繧ｹ繧ｿ繝・け 繝医Ξ繝ｼ繧ｹ:
+     at System.Net.Http.HttpResponseMessage.EnsureSuccessStatusCode()
+   at Bridge.Tests.BridgeIntegrationTests.TestMarkProcessed_ShouldUpdateOrderStatus() in C:\Users\Nekoya2\appprojects\Cbot_to_MQL5_Translation\Bridge.Tests\BridgeIntegrationTests.cs:line 194
+--- End of stack trace from previous location ---
+  讓呎ｺ門・蜉帙Γ繝・そ繝ｼ繧ｸ:
+ Add response: {"OrderId":"3c01ce8f-3513-4bde-bcb6-e015511b3796","Status":"Queued"}
+
+
+
+螟ｱ謨・   -螟ｱ謨・     3縲∝粋譬ｼ:    20縲√せ繧ｭ繝・・:     0縲∝粋險・    23縲∵悄髢・ 1 s - Bridge.Tests.dll (net10.0)

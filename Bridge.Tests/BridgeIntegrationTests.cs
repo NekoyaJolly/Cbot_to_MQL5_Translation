@@ -42,7 +42,7 @@ namespace Bridge.Tests
             _output.WriteLine($"Health response: {content}");
             
             // Check that response contains "Healthy" or "Status"
-            Assert.Contains("status", content); // camelCase JSON
+            Assert.Contains("Status", content); // PascalCase JSON
             Assert.Contains("Healthy", content);
         }
 
@@ -67,7 +67,7 @@ namespace Bridge.Tests
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
             _output.WriteLine($"Add order response: {content}");
-            Assert.Contains("orderId", content); // camelCase JSON
+            Assert.Contains("OrderId", content); // PascalCase JSON
         }
 
         [Fact]
@@ -107,9 +107,9 @@ namespace Bridge.Tests
             _output.WriteLine($"First response: {content1}");
             _output.WriteLine($"Second response: {content2}");
             
-            // Both responses should contain orderId and they should be the same
-            Assert.Contains("orderId", content1); // camelCase JSON
-            Assert.Contains("orderId", content2);
+            // Both responses should contain OrderId and they should be the same
+            Assert.Contains("OrderId", content1); // PascalCase JSON
+            Assert.Contains("OrderId", content2);
             Assert.Equal(content1, content2); // Entire response should be identical for idempotent requests
         }
 
@@ -182,8 +182,8 @@ namespace Bridge.Tests
             _output.WriteLine($"Add response: {addContent}");
             
             // Extract order ID from response (simplified parsing)
-            // Response format: {"orderId":"xxx","status":"Queued"} (camelCase)
-            var startIdx = addContent.IndexOf("orderId\":\"") + 10;
+            // Response format: {"OrderId":"xxx","Status":"Queued"} (PascalCase)
+            var startIdx = addContent.IndexOf("OrderId\":\"") + 10;
             var endIdx = addContent.IndexOf("\"", startIdx);
             var orderId = addContent.Substring(startIdx, endIdx - startIdx);
 
@@ -248,8 +248,8 @@ namespace Bridge.Tests
             var content = await getResponse.Content.ReadAsStringAsync();
             _output.WriteLine($"Ticket mapping response: {content}");
             
-            Assert.Contains("sourceTicket", content); // camelCase JSON
-            Assert.Contains("slaveTicket", content);
+            Assert.Contains("SourceTicket", content); // PascalCase JSON
+            Assert.Contains("SlaveTicket", content);
             Assert.Contains(sourceTicket, content);
             Assert.Contains(slaveTicket, content);
             
@@ -298,7 +298,7 @@ namespace Bridge.Tests
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
             _output.WriteLine($"Special character test response: {content}");
-            Assert.Contains("orderId", content);
+            Assert.Contains("OrderId", content);
             
             // Verify we can retrieve it
             var getResponse = await client.GetAsync("/api/orders/pending?maxCount=100");
@@ -338,7 +338,7 @@ namespace Bridge.Tests
             response.EnsureSuccessStatusCode();
             var content = await response.Content.ReadAsStringAsync();
             _output.WriteLine($"Complex JSON test response: {content}");
-            Assert.Contains("orderId", content);
+            Assert.Contains("OrderId", content);
             
             _output.WriteLine($"Successfully handled order with complex escape sequences");
         }
@@ -366,7 +366,7 @@ namespace Bridge.Tests
                        $"Expected 2xx status code, got {addResponse.StatusCode}");
             
             var content = await addResponse.Content.ReadAsStringAsync();
-            var startIdx = content.IndexOf("orderId\":\"") + 10;
+            var startIdx = content.IndexOf("OrderId\":\"") + 10;
             var endIdx = content.IndexOf("\"", startIdx);
             var orderId = content.Substring(startIdx, endIdx - startIdx);
 

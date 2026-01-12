@@ -394,7 +394,7 @@ namespace E2ETests
             var content = await response.Content.ReadAsStringAsync();
             _output.WriteLine($"Health check response: {content}");
 
-            Assert.Contains("status", content);
+            Assert.Contains("Status", content);
             Assert.Contains("Healthy", content);
 
             _output.WriteLine("\n✓ Health Check E2E Test Completed");
@@ -681,8 +681,20 @@ namespace E2ETests
 
         private string? ExtractOrderId(string jsonResponse)
         {
-            var startIdx = jsonResponse.IndexOf("orderId\":\"") + 10;
-            if (startIdx < 10) return null;
+            // Try to extract OrderId (capital O) first
+            var startIdx = jsonResponse.IndexOf("OrderId\":\"");
+            if (startIdx == -1)
+            {
+                // Fallback to lowercase orderId
+                startIdx = jsonResponse.IndexOf("orderId\":\"");
+                if (startIdx == -1) return null;
+                startIdx += 10;
+            }
+            else
+            {
+                startIdx += 10;
+            }
+            
             var endIdx = jsonResponse.IndexOf("\"", startIdx);
             if (endIdx < 0) return null; // Handle case where closing quote is not found
             return jsonResponse.Substring(startIdx, endIdx - startIdx);
