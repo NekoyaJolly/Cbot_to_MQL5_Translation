@@ -47,6 +47,9 @@ namespace CtraderBot
 
         protected override void OnStart()
         {
+            // DEBUG: Log immediately to verify OnStart is called
+            Print("[DEBUG] TradeSyncBot.OnStart() called at {0}", DateTime.UtcNow.ToString("o"));
+            
             _httpClient = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(5)
